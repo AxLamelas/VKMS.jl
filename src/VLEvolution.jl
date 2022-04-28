@@ -1,6 +1,8 @@
 module VLEvolution
 
-export evolve, VLGroup, AbstractMetaVariable, Point,randomPoint, similar_population, AbstractOptimParameters, OptimParameters, Param, AbstractModel, fitness_factory, Model, groupparams, best_by_size
+export evolve, VLGroup, AbstractMetaVariable, Point,randomPoint, similar_population,
+AbstractOptimParameters, OptimParameters, Param, AbstractModel, fitness_factory, Model,
+groupparams, best_by_size, KnotModel, random_population, model_function_factory, get_n_metavariables
 
 using Dates
 using StatsBase
