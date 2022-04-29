@@ -143,7 +143,7 @@ end
 function random_population(xbounds::AbstractVector{<:Tuple},ybounds::AbstractVector{<:Tuple},pop_size::Int, metric::Function; gen_multiplier::Int=10)
     @assert length(xbounds) == length(ybounds) "Bounds must have the same length"
     size = gen_multiplier*pop_size
-    
+    n_knots = length(xbounds)
     pop = [
         begin
             knot_x = [(Mx-mx) * rand() + mx for (mx,Mx) in xbounds]
