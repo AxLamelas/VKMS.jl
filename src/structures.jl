@@ -140,20 +140,30 @@ function model_function_factory(m::KnotModel)
 end
 
 
-function random_population(xbounds::AbstractVector{<:Tuple},ybounds::AbstractVector{<:Tuple},pop_size::Int, metric::Function; gen_multiplier::Int=10)
+function random_population(
+    xbounds::AbstractVector{<:Tuple},
+    ybounds::AbstractVector{<:Tuple},
+    mbounds::Tuple,
+    bbounds::Tuple,
+    pop_size::Int,
+    metric::Function;
+    gen_multiplier::Int=10
+    )
     @assert length(xbounds) == length(ybounds) "Bounds must have the same length"
+    mm, Mm = mbounds
+    mb, Mb = bbounds
     size = gen_multiplier*pop_size
     n_knots = length(xbounds)
     pop = [
         begin
             knot_x = [(Mx-mx) * rand() + mx for (mx,Mx) in xbounds]
             knot_y = [(My-my) * rand() + my for (my,My) in ybounds]
-            KnotModel(Param(1e-3*randn(),-20,20),Param(1e-3*randn(),-20,20),
+            KnotModel(Param((Mm-mm) * rand() + mm,mbounds...),Param((Mb-mb) * rand() + mb,bbounds...),
                 VLGroup(Point,n_knots,knot_x,xbounds,knot_y,ybounds))
         end for _ in 1:size
     ]
     m = Vector{Number}(undef,size)
-    Threads.@threads for i in 1:size
+    @batch for i in 1:size
         m[i] = metric(pop[i])
     end
 
@@ -162,27 +172,41 @@ function random_population(xbounds::AbstractVector{<:Tuple},ybounds::AbstractVec
 end
 
 
-function random_population(n_knots::Integer,xbounds,ybounds,pop_size::Int, metric::Function; gen_multiplier::Int=10)
+function random_population(
+    n_knots::Integer,
+    xbounds::Tuple,
+    ybounds::Tuple,
+    mbounds::Tuple,
+    bbounds::Tuple,
+    pop_size::Int,
+    metric::Function;
+    gen_multiplier::Int=10
+    )
     size = gen_multiplier*pop_size
     mx,Mx = xbounds
     my,My = ybounds
+    mm, Mm = mbounds
+    mb, Mb = bbounds
     pop = [
         begin
             knot_x = range(mx,Mx,length=n_knots)
             bounds_x = vcat((mx,mx),fill((mx,Mx),n_knots-2),(Mx,Mx))
             knot_y = (My-my) .* rand(n_knots) .+ my
             bounds_y = fill((my,My),n_knots)
-            KnotModel(Param(1e-3*randn(),-20,20),Param(1e-3*randn(),-20,20),
+            KnotModel(Param((Mm-mm) * rand() + mm,mbounds...),Param((Mb-mb) * rand() + mb,bbounds...),
                 VLGroup(Point,n_knots,knot_x,bounds_x,knot_y,bounds_y))
         end for _ in 1:size
     ]
     m = Vector{Number}(undef,size)
-    Threads.@threads for i in 1:size
+    @batch for i in 1:size
         m[i] = metric(pop[i])
     end
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]
     
 end
+
+
+
 
 
