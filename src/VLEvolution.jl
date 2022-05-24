@@ -29,24 +29,28 @@ function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{
     return Dict([(v,pop[findmax([ s == v ? p : -Inf for (s,p) in collect(zip(sizes,perf)) ])[2]]) for v in u])
 end
 
-function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector)
+function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector)
     function fitness(state::OptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
         if state.helper == :more
-            [- residuals' * residuals , get_n_metavariables(m)]
+            [- residuals' * (weigths .* residuals) , get_n_metavariables(m)]
         elseif state.helper == :less
-            [- residuals' * residuals , - get_n_metavariables(m)]
+            [- residuals' * (weigths .* residuals) , - get_n_metavariables(m)]
         elseif state.helper == :none
-            [- residuals' * residuals]
+            [- residuals' * (weigths .* residuals)]
         elseif state.helper == :both
             v = get_n_metavariables(m)
-            [- residuals' * residuals , - v, v]
+            [- residuals' * (weigths .* residuals) , - v, v]
         else
             throw(error("Unexpected helper: $(state.helper)"))
         end
     end
     return fitness
 end
+
+fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector) = fitness_factory(functional, x, y, ones(length(x)))
+
+
 
 function evaluate(state, pop, fitness_function)
     pop_size = length(pop)
