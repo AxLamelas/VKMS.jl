@@ -278,7 +278,7 @@ function constraints(
     n = get_n_metavariables(pop[best])
     @debug "Number of parmeters of best: $n"
 
-    c_violation += clamp.(abs.(n .- get_n_metavariables.(pop)) .- state.window,0,Inf)
+    c_violation += clamp.([sum(abs.(n .- p)) for p in get_n_metavariables.(pop)] .- state.window,0,Inf)
     
     return c_violation
 end

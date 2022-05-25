@@ -33,13 +33,13 @@ function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVect
     function fitness(state::OptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
         if state.helper == :more
-            [- residuals' * (weigths .* residuals) , get_n_metavariables(m)]
+            [- residuals' * (weigths .* residuals) , sum(get_n_metavariables(m))]
         elseif state.helper == :less
-            [- residuals' * (weigths .* residuals) , - get_n_metavariables(m)]
+            [- residuals' * (weigths .* residuals) , - sum(get_n_metavariables(m))]
         elseif state.helper == :none
             [- residuals' * (weigths .* residuals)]
         elseif state.helper == :both
-            v = get_n_metavariables(m)
+            v = sum(get_n_metavariables(m))
             [- residuals' * (weigths .* residuals) , - v, v]
         else
             throw(error("Unexpected helper: $(state.helper)"))
@@ -62,10 +62,10 @@ function evaluate(state, pop, fitness_function)
 end
 
 
-scheduler(gen::Integer,rel_change::Number,p::AbstractOptimParameters) = p
+@inline scheduler(gen::Integer,p::AbstractOptimParameters) = p # rel_change::Number,
 
 function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50) # stopping_tol=nothing,
-    @assert any([!isnothing(c) for c in [max_gen,max_time,stopping_tol]]) "Please define at least one stopping criterium"
+    @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
 
     start_time = now()
     gen = 0
@@ -160,23 +160,24 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
 
         if !isnothing(info_every) && mod(gen,info_every) == 0
             @info begin
-                sizes = hcat([get_n_metavariables(v) for v in pop]...)
-                mins = findmin(sizes, dims=2)[2]
-                maxs = findmax(sizes, dims=2)[2]
+                sizes = [get_n_metavariables(v) for v in pop]
+                l = length(sizes[1])
+                mins = [findmin(getindex.(sizes,i), dims=2)[1] for i in 1:l]
+                maxs = [findmax(getindex.(sizes,i), dims=2)[1] for i in 1:l]
                 
                 """
                 Generation $(gen) - $(hmss(t))
-                Best: $([maximum([isnan(v[i]) ? -Inf : v[i] for v in pool_perf]) for i in 1:(length(pool_perf[1])-1)])
-                Relative change: $rel_change
-                Minimum knots: $(sizes[mins])
-                Maximum knots: $(sizes[maxs])
+                Best per objective: $([maximum([isnan(v[i]) ? -Inf : v[i] for v in pool_perf]) for i in 1:length(pool_perf[1])])
+                Minimum metavariables: $mins
+                Maximum metavariables: $maxs
                 """
+                # Relative change: $rel_change
                 # Current metric: $current_convergence_metric
             end
         end
 
         @debug "Number of ranks: $(maximum(rank))"
-        scheduler(gen,rel_change,state)
+        scheduler(gen,state) # rel_change,
     end
 
     return pop

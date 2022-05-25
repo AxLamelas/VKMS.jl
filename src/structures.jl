@@ -106,7 +106,7 @@ delete(m::AbstractModel,id::UUID, meta::AbstractMetaVariable) = modify(g -> g.id
 deleteat(m::AbstractModel,id::UUID, ind::Integer) = modify(g -> g.id == id ? deleteat(g,ind) : g, m,VLGroup)
 
 isfixed(p::Param) = p.lb == p.ub
-get_n_metavariables(m::AbstractModel)::Int = length(flatten(m,AbstractMetaVariable))
+get_n_metavariables(m::AbstractModel) = (length(flatten(m,AbstractMetaVariable)),)
 
 struct KnotModel{T} <: AbstractModel
     m::Param{T}
@@ -115,7 +115,7 @@ struct KnotModel{T} <: AbstractModel
 end
 
 Base.length(x::KnotModel) = nfields(x)+1+length(x.knots)
-get_n_metavariables(x::KnotModel)::Int = length(x.knots)
+get_n_metavariables(x::KnotModel) = (length(x.knots),)
 
 
 function correct_same_x!(xs::AbstractVector)
