@@ -162,8 +162,8 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
             @info begin
                 sizes = [get_n_metavariables(v) for v in pop]
                 l = length(sizes[1])
-                mins = [findmin(getindex.(sizes,i), dims=2)[1][1] for i in 1:l]
-                maxs = [findmax(getindex.(sizes,i), dims=2)[1][1] for i in 1:l]
+                mins = [minumum(getindex.(sizes,i)) for i in 1:l]
+                maxs = [maximum(getindex.(sizes,i)) for i in 1:l]
                 
                 """
                 Generation $(gen) - $(hmss(t))
