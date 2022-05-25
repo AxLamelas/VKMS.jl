@@ -64,13 +64,13 @@ end
 
 scheduler(gen::Integer,rel_change::Number,p::AbstractOptimParameters) = p
 
-function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing,stopping_tol=nothing, info_every=50)
+function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50) # stopping_tol=nothing,
     @assert any([!isnothing(c) for c in [max_gen,max_time,stopping_tol]]) "Please define at least one stopping criterium"
 
     start_time = now()
     gen = 0
-    no_change_counter = 0
-    previous_convergence_metric = Inf
+    # no_change_counter = 0
+    # previous_convergence_metric = Inf
 
     if !isnothing(info_every) @info "Starting evolution with state $state" end
     while true
@@ -138,25 +138,25 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         
         pop = pool[selected]
 
-        # Checking for convergence
-        current_convergence_metric = Statistics.median([isnan(v[1]) ? 0 : v[1] for v in pool_perf[selected]])
+        # # Checking for convergence
+        # current_convergence_metric = Statistics.median([isnan(v[1]) ? 0 : v[1] for v in pool_perf[selected]])
 
-        rel_change = abs(current_convergence_metric  / previous_convergence_metric - 1)
+        # rel_change = abs(current_convergence_metric  / previous_convergence_metric - 1)
 
-        if (!isnothing(stopping_tol)) 
-            if  rel_change < stopping_tol[1]
-                no_change_counter += 1
-            else
-                no_change_counter = 0 # reset
-            end
-            if no_change_counter >= stopping_tol[2]
-                if !isnothing(info_every) @info "Finished: No change bellow $(stopping_tol[1]) for the last $(stopping_tol[2]) generations" end
-                break
-            end
-            if !isnothing(info_every) && mod(gen,info_every) == 0 @info "No change counter: $(no_change_counter)" end
-        end
+        # if (!isnothing(stopping_tol)) 
+        #     if  rel_change < stopping_tol[1]
+        #         no_change_counter += 1
+        #     else
+        #         no_change_counter = 0 # reset
+        #     end
+        #     if no_change_counter >= stopping_tol[2]
+        #         if !isnothing(info_every) @info "Finished: No change bellow $(stopping_tol[1]) for the last $(stopping_tol[2]) generations" end
+        #         break
+        #     end
+        #     if !isnothing(info_every) && mod(gen,info_every) == 0 @info "No change counter: $(no_change_counter)" end
+        # end
 
-        previous_convergence_metric = current_convergence_metric
+        # previous_convergence_metric = current_convergence_metric
 
         if !isnothing(info_every) && mod(gen,info_every) == 0
             @info begin
@@ -166,12 +166,12 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
                 
                 """
                 Generation $(gen) - $(hmss(t))
-                Best: $(maximum([isnan(v[1]) ? -Inf : v[1] for v in pool_perf]))
-                Current metric: $current_convergence_metric
+                Best: $([maximum([isnan(v[i]) ? -Inf : v[i] for v in pool_perf]) for i in 1:(length(pool_perf[1])-1)])
                 Relative change: $rel_change
                 Minimum knots: $(sizes[mins])
                 Maximum knots: $(sizes[maxs])
                 """
+                # Current metric: $current_convergence_metric
             end
         end
 
