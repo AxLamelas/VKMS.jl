@@ -1,7 +1,7 @@
-name = "VLEvolution"
+name = "VKMS"
 uuid = "d76bfde1-0136-426d-94e2-a690132a6077"
 authors = ["AxLamelas"]
-version = "0.3.0"
+version = "0.4.0"
 
 [deps]
 AbstractNumbers = "85c772de-338a-5e7f-b815-41e76c26ac1f"

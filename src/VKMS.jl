@@ -1,4 +1,4 @@
-module VLEvolution
+module VKMS
 
 export evolve, VLGroup, AbstractMetaVariable, Point,randomPoint, similar_population,
 AbstractOptimParameters, OptimParameters, Param, AbstractModel, fitness_factory, Model,
