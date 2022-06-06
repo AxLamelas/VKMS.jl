@@ -112,9 +112,9 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
 
         selected = Int[]
         # Main obj elitism
-        if state.n_main_obj_elitism != 0
+        if (state.n_main_obj_elitism != 0) & any(constraint_violation .== 0)
             append!(selected, sortperm(
-                [isnan(v[1]) || c != 0 ? -Inf : v[1] for (c,v) in zip(constraint_violation,pool_perf)],rev=true
+                [(isnan(v[1]) || c != 0) ? -Inf : v[1] for (c,v) in zip(constraint_violation,pool_perf)],rev=true
                 )[1:state.n_main_obj_elitism]
             )
             
