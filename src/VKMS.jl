@@ -94,6 +94,28 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         rank, _ = fast_non_dominated_sort(pop_perf,constraint_violation)
         distance = crowding_distance(pop_perf,rank)
 
+        
+        if !isnothing(info_every) && mod(gen,info_every) == 0
+            @info begin
+                sizes = [get_n_metavariables(v) for v in pop]
+                l = length(sizes[1])
+                mins = [minimum(getindex.(sizes,i)) for i in 1:l]
+                maxs = [maximum(getindex.(sizes,i)) for i in 1:l]
+                
+                """
+                Generation $(gen) - $(hmss(t))
+                Best per objective: $([maximum([isnan(v[i]) ? -Inf : v[i] for v in pop_perf]) for i in 1:length(pop_perf[1])])
+                Minimum metavariables: $mins
+                Maximum metavariables: $maxs
+                """
+                # Relative change: $rel_change
+                # Current metric: $current_convergence_metric
+            end
+        end
+
+        @debug "Number of ranks: $(maximum(rank))"
+
+
         @debug "Generating candidate child population"
         mating_pool = selection(rank,distance)
         pop_candidate = crossover(state,pop[mating_pool],state.pop_size)
@@ -158,25 +180,6 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
 
         # previous_convergence_metric = current_convergence_metric
 
-        if !isnothing(info_every) && mod(gen,info_every) == 0
-            @info begin
-                sizes = [get_n_metavariables(v) for v in pop]
-                l = length(sizes[1])
-                mins = [minimum(getindex.(sizes,i)) for i in 1:l]
-                maxs = [maximum(getindex.(sizes,i)) for i in 1:l]
-                
-                """
-                Generation $(gen) - $(hmss(t))
-                Best per objective: $([maximum([isnan(v[i]) ? -Inf : v[i] for v in pool_perf]) for i in 1:length(pool_perf[1])])
-                Minimum metavariables: $mins
-                Maximum metavariables: $maxs
-                """
-                # Relative change: $rel_change
-                # Current metric: $current_convergence_metric
-            end
-        end
-
-        @debug "Number of ranks: $(maximum(rank))"
         scheduler(gen,state) # rel_change,
     end
 
