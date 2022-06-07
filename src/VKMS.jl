@@ -94,17 +94,16 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         rank, _ = fast_non_dominated_sort(pop_perf,constraint_violation)
         distance = crowding_distance(pop_perf,rank)
 
-        
-        if !isnothing(info_every) && mod(gen,info_every) == 0
+        if !isnothing(info_every) && mod(gen-1,info_every) == 0
             @info begin
-                sizes = [get_n_metavariables(v) for v in pop]
+                sizes = [get_n_metavariables(v) for v in pop[constraint_violation .== 0.]]
                 l = length(sizes[1])
                 mins = [minimum(getindex.(sizes,i)) for i in 1:l]
                 maxs = [maximum(getindex.(sizes,i)) for i in 1:l]
                 
                 """
                 Generation $(gen) - $(hmss(t))
-                Best per objective: $([maximum([isnan(v[i]) ? -Inf : v[i] for v in pop_perf]) for i in 1:length(pop_perf[1])])
+                Best per objective: $([maximum([isnan(v[i]) ? -Inf : v[i] for v in pop_perf[constraint_violation .== 0.]]) for i in 1:length(pop_perf[1])])
                 Minimum metavariables: $mins
                 Maximum metavariables: $maxs
                 """
@@ -134,12 +133,16 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
 
         selected = Int[]
         # Main obj elitism
-        if (state.n_main_obj_elitism != 0) & any(constraint_violation .== 0)
-            append!(selected, sortperm(
-                [isnan(v[1]) ? -Inf : v[1] for (c,v) in zip(constraint_violation,pool_perf)],rev=true
-                )[1:state.n_main_obj_elitism]
-            )
-            
+        try
+            if (state.n_main_obj_elitism != 0)
+                append!(selected, sortperm(
+                    [isnan(v[1]) ? -Inf : v[1] for v in pool_perf[constraint_violation .== 0.]],rev=true
+                    )[1:state.n_main_obj_elitism]
+                )
+                
+            end
+        catch 
+            nothing
         end
         # Determine non-dominated rank that complitely fits in pop_size
         ind = 0
