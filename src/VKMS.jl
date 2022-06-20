@@ -48,8 +48,24 @@ function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVect
     return fitness
 end
 
-fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector) = fitness_factory(functional, x, y, ones(length(x)))
-
+function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector)
+    function fitness(state::OptimParameters,m::AbstractModel)
+        residuals = y .- functional(x,m)
+        if state.helper == :more
+            [- residuals' * residuals , sum(get_n_metavariables(m))]
+        elseif state.helper == :less
+            [- residuals' * residuals , - sum(get_n_metavariables(m))]
+        elseif state.helper == :none
+            [- residuals' * residuals]
+        elseif state.helper == :both
+            v = sum(get_n_metavariables(m))
+            [- residuals' * residuals , - v, v]
+        else
+            throw(error("Unexpected helper: $(state.helper)"))
+        end
+    end
+    return fitness
+end
 
 
 function evaluate(state, pop, fitness_function)
