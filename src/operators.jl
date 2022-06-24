@@ -188,7 +188,7 @@ end
 function simulated_binary_crossover(p1::Param,p2::Param;p::Number=0.5,η::Number=2)
     if rand() >= p return p1,p2 end
     u = rand()
-    β = (u <= 0.5 ? (2u)^(1/(η+1)) : (2(1-u))^(-1/(η+1))) * Levy(0,1.5)
+    β = (u <= 0.5 ? (2u)^(1/(η+1)) : (2(1-u))^(-1/(η+1))) * Levy(1,1.5)
     return 0.5((1-β)*p1+(1+β)*p2),  0.5((1+β)*p1+(1-β)*p2)
 end
 
