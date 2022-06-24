@@ -78,7 +78,7 @@ function evaluate(state, pop, fitness_function)
 end
 
 
-@inline scheduler(gen::Integer,p::AbstractOptimParameters) = p # rel_change::Number,
+@inline scheduler(gen::Integer,pop::AbstractVector,perf::AbstractVector,p::AbstractOptimParameters) = p # rel_change::Number,
 
 function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50) # stopping_tol=nothing,
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
@@ -199,7 +199,7 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
 
         # previous_convergence_metric = current_convergence_metric
 
-        scheduler(gen,state) # rel_change,
+        scheduler(gen,pop,pool_perf[selected],state) # rel_change,
     end
 
     return pop
