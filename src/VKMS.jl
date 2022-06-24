@@ -78,7 +78,7 @@ function evaluate(state, pop, fitness_function)
 end
 
 
-@inline scheduler(gen::Integer,pop::AbstractVector,perf::AbstractVector,p::AbstractOptimParameters) = p # rel_change::Number,
+@inline scheduler(gen::Integer,pop::AbstractVector,perf::AbstractVector,p::AbstractOptimParameters) = pop,p # rel_change::Number,
 
 function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50) # stopping_tol=nothing,
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
@@ -109,6 +109,8 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         constraint_violation = constraints(state, pop, pop_perf)
         rank, _ = fast_non_dominated_sort(pop_perf,constraint_violation)
         distance = crowding_distance(pop_perf,rank)
+
+        pop, state = scheduler(gen,pop,pool_perf[selected],state)
 
         if !isnothing(info_every) && mod(gen-1,info_every) == 0
             @info begin
@@ -179,27 +181,10 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         
         pop = pool[selected]
 
-        # # Checking for convergence
-        # current_convergence_metric = Statistics.median([isnan(v[1]) ? 0 : v[1] for v in pool_perf[selected]])
-
-        # rel_change = abs(current_convergence_metric  / previous_convergence_metric - 1)
-
-        # if (!isnothing(stopping_tol)) 
-        #     if  rel_change < stopping_tol[1]
-        #         no_change_counter += 1
-        #     else
-        #         no_change_counter = 0 # reset
-        #     end
-        #     if no_change_counter >= stopping_tol[2]
-        #         if !isnothing(info_every) @info "Finished: No change bellow $(stopping_tol[1]) for the last $(stopping_tol[2]) generations" end
-        #         break
-        #     end
-        #     if !isnothing(info_every) && mod(gen,info_every) == 0 @info "No change counter: $(no_change_counter)" end
-        # end
-
-        # previous_convergence_metric = current_convergence_metric
-
-        scheduler(gen,pop,pool_perf[selected],state) # rel_change,
+        # Emigration
+        n_emigrants = 3
+        emigrants = [mutate_element(MutationParameters(1,0.9,0.3),pop[1]) for _ in 1:3]
+        pop[end-n_emigrants:end] = emigrants
     end
 
     return pop
