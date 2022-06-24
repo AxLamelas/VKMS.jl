@@ -190,8 +190,8 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
 
         # Emigration
         n_emigrants = 3
-        emigrants = [mutate_element(MutationParameters(1.,0.9,0.3),pop[1]) for _ in 1:3]
-        pop[end-n_emigrants:end] = emigrants
+        emigrants = [mutate_element(MutationParameters(1.,0.9,0.3),pop[1]) for _ in 1:n_emigrants]
+        pop[end-n_emigrants+1:end] = emigrants
     end
 
     return pop
