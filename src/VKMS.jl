@@ -78,7 +78,14 @@ function evaluate(state, pop, fitness_function)
 end
 
 
-@inline scheduler(gen::Integer,pop::AbstractVector,perf::AbstractVector,p::AbstractOptimParameters) = pop,p # rel_change::Number,
+@inline scheduler(
+    gen::Integer,
+    pop::AbstractVector,
+    perf::AbstractVector,
+    constraint_violation::AbstractVector,
+    rank::AbstractVector,
+    distance::AbstractVector,
+    p::AbstractOptimParameters) = pop,p # rel_change::Number,
 
 function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50) # stopping_tol=nothing,
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
@@ -110,7 +117,7 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         rank, _ = fast_non_dominated_sort(pop_perf,constraint_violation)
         distance = crowding_distance(pop_perf,rank)
 
-        pop, state = scheduler(gen,pop,pool_perf[selected],state)
+        pop, state = scheduler(gen,pop,pop_perf,constraint_violation,rank,distance,state)
 
         if !isnothing(info_every) && mod(gen-1,info_every) == 0
             @info begin
