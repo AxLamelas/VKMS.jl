@@ -84,7 +84,6 @@ function identity_scheduler(
     perf::AbstractVector,
     constraint_violation::AbstractVector,
     rank::AbstractVector,
-    distance::AbstractVector,
     p::AbstractOptimParameters)
     
     @debug("Identity scheduler")
@@ -121,8 +120,6 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         rank, _ = fast_non_dominated_sort(pop_perf,constraint_violation)
         distance = crowding_distance(pop_perf,rank)
 
-        pop, state = scheduler(gen,pop,pop_perf,constraint_violation,rank,distance,state)
-
         if !isnothing(info_every) && mod(gen-1,info_every) == 0
             @info begin
                 sizes = [get_n_metavariables(v) for v in pop[constraint_violation .== 0.]]
@@ -157,7 +154,7 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         pool = vcat(pop,pop_candidate)
         pool_perf = vcat(pop_perf,pop_candidate_perf)
         constraint_violation = constraints(state, pool, pool_perf)
-        _, fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
+        rank, fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
         
 
         selected = Int[]
@@ -191,6 +188,8 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         end
         
         pop = pool[selected]
+
+        pop, state = scheduler(gen,pop,pop_perf[selected],constraint_violation[selected],rank[selected],state)
 
         # # Emigration
         # n_emigrants = 3
