@@ -78,7 +78,7 @@ function evaluate(state, pop, fitness_function)
 end
 
 
-function scheduler(
+function identity_scheduler(
     gen::Integer,
     pop::AbstractVector,
     perf::AbstractVector,
@@ -91,7 +91,7 @@ function scheduler(
     return pop,p
 end
 
-function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50) # stopping_tol=nothing,
+function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50,scheduler=identity_scheduler) # stopping_tol=nothing,
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
 
     start_time = now()
