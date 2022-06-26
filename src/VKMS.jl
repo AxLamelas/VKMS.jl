@@ -189,7 +189,7 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         
         pop = pool[selected]
 
-        pop, state = scheduler(gen,pop,pop_perf[selected],constraint_violation[selected],rank[selected],state)
+        pop, state = scheduler(gen,pop,pool_perf[selected],constraint_violation[selected],rank[selected],state)
 
         # # Emigration
         # n_emigrants = 3
