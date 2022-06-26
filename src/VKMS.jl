@@ -115,7 +115,7 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         pop_perf = evaluate(state,pop,fitness_function)
         constraint_violation = constraints(state, pop, pop_perf)
         rank, _ = fast_non_dominated_sort(pop_perf,constraint_violation)
-        distance = euclidian_distance(pop_perf,rank)
+        distance = crowding_distance(pop_perf,rank)
 
         pop, state = scheduler(gen,pop,pop_perf,constraint_violation,rank,distance,state)
 
@@ -182,7 +182,7 @@ function evolve(pop, fitness_function,state::AbstractOptimParameters; max_gen=no
         # Append the remaining base on distance
         remaining = state.pop_size-length(selected)
         if remaining != 0
-            distance = euclidian_distance(pool_perf[fronts[ind]])
+            distance = crowding_distance(pool_perf[fronts[ind]])
             append!(selected,fronts[ind][sortperm(distance,rev=true)[1:remaining]])
         end
         
