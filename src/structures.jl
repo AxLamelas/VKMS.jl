@@ -152,7 +152,7 @@ function random_population(
     @assert length(xbounds) == length(ybounds) "Bounds must have the same length"
     mm, Mm = mbounds
     mb, Mb = bbounds
-    size = gen_multiplier*pop_size
+    total = gen_multiplier*pop_size
     n_knots = length(xbounds)
     pop = [
         begin
@@ -160,10 +160,10 @@ function random_population(
             knot_y = [(My-my) * rand() + my for (my,My) in ybounds]
             KnotModel(Param((Mm-mm) * rand() + mm,mbounds...),Param((Mb-mb) * rand() + mb,bbounds...),
                 VLGroup(Point,n_knots,knot_x,xbounds,knot_y,ybounds))
-        end for _ in 1:size
+        end for _ in 1:total
     ]
-    m = Vector{Number}(undef,size)
-    @batch for i in 1:size
+    m = Vector{Number}(undef,total)
+    @batch for i in 1:total
         m[i] = metric(pop[i])
     end
 
@@ -182,7 +182,7 @@ function random_population(
     metric::Function;
     gen_multiplier::Int=10
     )
-    size = gen_multiplier*pop_size
+    total = gen_multiplier*pop_size
     mx,Mx = xbounds
     my,My = ybounds
     mm, Mm = mbounds
@@ -195,10 +195,10 @@ function random_population(
             bounds_y = fill((my,My),n_knots)
             KnotModel(Param((Mm-mm) * rand() + mm,mbounds...),Param((Mb-mb) * rand() + mb,bbounds...),
                 VLGroup(Point,n_knots,knot_x,bounds_x,knot_y,bounds_y))
-        end for _ in 1:size
+        end for _ in 1:total
     ]
-    m = Vector{Number}(undef,size)
-    @batch for i in 1:size
+    m = Vector{Number}(undef,total)
+    @batch for i in 1:total
         m[i] = metric(pop[i])
     end
 
