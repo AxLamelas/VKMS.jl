@@ -75,22 +75,26 @@ function crowding_distance(pop_perf,ranks)
     return d
 end
 
+function euclidian_distance(front)
+    n = length(front)
+    dist = Inf * ones(n,n)
+    for i in 1:n
+        for j in (i+1):n
+            v = front[i] .- front[j]
+            dist[i,j] = v' * v
+            dist[j,i] = dist[i,j]
+        end
+    end
+    return minimum(dist;dims=2)
+end
+
 function euclidian_distance(pop_perf,ranks)
     d = Vector{Float64}(undef,length(pop_perf))
     for r in unique(ranks)
         roi = ranks .== r
-        elems = pop_perf[roi]
-        n = length(elems)
-        dist = Inf * ones(n,n)
-        for i in 1:n
-            for j in (i+1):n
-                v = elems[i] .- elems[j]
-                dist[i,j] = v' * v
-                dist[j,i] = dist[i,j]
-            end
-        end
-        d[roi] = minimum(dist;dims=2)
+        d[roi] = euclidian_distance(pop_perf[roi])
     end
+    return d
 end
 
 nondominated_better(ranki,rankj,distancei,distancej) = (ranki < rankj) | ((ranki == rankj) & (distancei > distancej))
