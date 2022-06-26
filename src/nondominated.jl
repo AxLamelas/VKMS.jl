@@ -85,7 +85,7 @@ function euclidian_distance(front)
             dist[j,i] = dist[i,j]
         end
     end
-    return minimum(dist;dims=2)
+    return minimum(dist;dims=2)[:]
 end
 
 function euclidian_distance(pop_perf,ranks)
