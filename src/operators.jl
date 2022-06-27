@@ -61,7 +61,7 @@ end
 
 function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Function; gen_multiplier::Int = 10, η::Number = 500.,pl::Number = 0.2)
     @assert gen_multiplier >= 1 "Generation multiplier should be at least 1"
-    if gen_multiplier == 1 return initialize_population(initial_s,pop_size, η = η) end
+    if gen_multiplier == 1 return similar_population(initial_s,pop_size, η = η) end
 
     size = pop_size*gen_multiplier
     pop = Vector{typeof(initial_s)}(undef,size)
