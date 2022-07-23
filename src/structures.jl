@@ -163,7 +163,7 @@ function random_population(
         end for _ in 1:total
     ]
     m = Vector{Number}(undef,total)
-    @batch for i in 1:total
+    @floop for i in 1:total
         m[i] = metric(pop[i])
     end
 
@@ -198,7 +198,7 @@ function random_population(
         end for _ in 1:total
     ]
     m = Vector{Number}(undef,total)
-    @batch for i in 1:total
+    @floop for i in 1:total
         m[i] = metric(pop[i])
     end
 

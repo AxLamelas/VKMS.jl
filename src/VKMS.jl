@@ -7,7 +7,7 @@ groupparams, best_by_size, KnotModel, random_population, model_function_factory,
 using Dates
 using StatsBase
 using Statistics
-using Polyester: @batch
+using FLoops
 
 
 include("structures.jl")
@@ -71,7 +71,7 @@ end
 function evaluate(state, pop, fitness_function)
     pop_size = length(pop)
     perf = Vector{Vector{Float64}}(undef,pop_size)
-    @batch for i in 1:pop_size
+    @floop for i in 1:pop_size
         perf[i] = fitness_function(state,pop[i])
     end
     return perf

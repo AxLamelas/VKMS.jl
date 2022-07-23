@@ -53,7 +53,7 @@ end
 
 function similar_population(initial_s::AbstractModel, pop_size::Int; η::Number = 500., pl::Number = 0.2)
     pop = Vector{typeof(initial_s)}(undef,pop_size)
-    @batch for i in 1:pop_size
+    @floop for i in 1:pop_size
         pop[i] = mutate_element(MutationParameters(promote(η,1.,pl)...), initial_s)
     end
     return pop
@@ -65,12 +65,12 @@ function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Fun
 
     size = pop_size*gen_multiplier
     pop = Vector{typeof(initial_s)}(undef,size)
-    @batch for i in 1:(size)
+    @floop for i in 1:(size)
         pop[i] = mutate_element(MutationParameters(promote(η,1.,pl)...), initial_s)
     end
 
     m = Vector{Number}(undef,size)
-    @batch for i in 1:size
+    @floop for i in 1:size
         m[i] = metric(pop[i])
     end
 
@@ -80,7 +80,7 @@ end
 
 
 function mutate!(state, pop)
-    @batch for i in 1:state.pop_size
+    @floop for i in 1:state.pop_size
         pop[i] = mutate_element(state,pop[i])
     end
 end
@@ -90,7 +90,7 @@ function selection(rank, distance, number_in_tournament=2)
     pop_size = length(rank)
 
     mating_pool = Vector{Int}(undef,pop_size)
-    @batch for i in 1:pop_size
+    @floop for i in 1:pop_size
         best = rand(1:pop_size)
         for _ in 1:number_in_tournament-1
             candidate = rand(1:pop_size)
