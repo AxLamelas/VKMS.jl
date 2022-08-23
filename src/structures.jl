@@ -145,6 +145,27 @@ function random_population(
     ybounds::AbstractVector{<:Tuple},
     mbounds::Tuple,
     bbounds::Tuple,
+    pop_size::Int
+    )
+    @assert length(xbounds) == length(ybounds) "Bounds must have the same length"
+    mm, Mm = mbounds
+    mb, Mb = bbounds
+    n_knots = length(xbounds)
+    return [
+        begin
+            knot_x = [(Mx-mx) * rand() + mx for (mx,Mx) in xbounds]
+            knot_y = [(My-my) * rand() + my for (my,My) in ybounds]
+            KnotModel(Param((Mm-mm) * rand() + mm,mbounds...),Param((Mb-mb) * rand() + mb,bbounds...),
+                VLGroup(Point,n_knots,knot_x,xbounds,knot_y,ybounds))
+        end for _ in 1:pop_size
+    ]   
+end
+
+function random_population(
+    xbounds::AbstractVector{<:Tuple},
+    ybounds::AbstractVector{<:Tuple},
+    mbounds::Tuple,
+    bbounds::Tuple,
     pop_size::Int,
     metric::Function;
     gen_multiplier::Int=10
