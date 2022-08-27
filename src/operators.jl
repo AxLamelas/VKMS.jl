@@ -217,7 +217,7 @@ function crossover_elements(state, p1::AbstractModel,p2::AbstractModel)
     ...)
 
     fixed_c1 = reconstruct(p1,fixed_v1,Param,VLGroup)
-    fixed_c2 = reconstruct(p1,fixed_v2,Param,VLGroup)
+    fixed_c2 = reconstruct(p2,fixed_v2,Param,VLGroup)
 
     vl_p1 = flatten(fixed_c1, VLGroup)
     vl_p2 = flatten(fixed_c2, VLGroup)
