@@ -223,7 +223,7 @@ function crossover_elements(state, p1::AbstractModel,p2::AbstractModel)
     vl_p2 = flatten(fixed_c2, VLGroup)
 
     # Similar-metavariable recombination - Reyerkerk et al. 2017
-    vl_v1::typeof(vl_p1),vl_v2::typeof(vl_p2) = zip(map(g -> begin
+    vl_v1,vl_v2 = zip(map(g -> begin
             m1 = flatten(g[1],AbstractMetaVariable)
             m2 = flatten(g[2],AbstractMetaVariable)
             
