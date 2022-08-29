@@ -114,7 +114,7 @@ struct KnotModel{T} <: AbstractModel
     knots::VLGroup{N,Point{T}} where N
 end
 
-Base.length(x::KnotModel) = nfields(x)+1+length(x.knots)
+Base.length(x::KnotModel) = nfields(x)-1+length(x.knots)
 get_n_metavariables(x::KnotModel) = (length(x.knots),)
 
 
