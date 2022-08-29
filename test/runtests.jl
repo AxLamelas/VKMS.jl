@@ -20,10 +20,10 @@ end
 
     fitness = fitness_factory(functional,x,y)
 
-    pop = random_population(10,(minimum(x),maximum(x)),(-1.5,1.5),(0.,0.),(0.,0.),state.pop_size,m -> fitness(state,m)[1])
+    pop = random_population(10,(minimum(x),maximum(x)),(-1.5,1.5),(0.,0.),(0.,0.),state.pop_size)
     @test all([all(p .== (10,)) for p in get_n_metavariables.(pop)])
 
-    final_pop = evolve(pop, fitness, state, max_gen = 100, info_every=10)
+    final_pop = evolve(pop, fitness, state, max_gen = 100, info_every=1)
     
     @test typeof(pop) == typeof(final_pop)
     @test length(pop) == length(final_pop) == state.pop_size

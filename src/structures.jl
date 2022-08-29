@@ -229,5 +229,34 @@ end
 
 
 
+function random_population(
+    n_knots::Integer,
+    xbounds::Tuple,
+    ybounds::Tuple,
+    mbounds::Tuple,
+    bbounds::Tuple,
+    pop_size::Int,
+    )
+    mx,Mx = xbounds
+    my,My = ybounds
+    mm, Mm = mbounds
+    mb, Mb = bbounds
+    pop = [
+        begin
+            knot_x = range(mx,Mx,length=n_knots)
+            bounds_x = vcat((mx,mx),fill((mx,Mx),n_knots-2),(Mx,Mx))
+            knot_y = (My-my) .* rand(n_knots) .+ my
+            bounds_y = fill((my,My),n_knots)
+            KnotModel(Param((Mm-mm) * rand() + mm,mbounds...),Param((Mb-mb) * rand() + mb,bbounds...),
+                VLGroup(Point,n_knots,knot_x,bounds_x,knot_y,bounds_y))
+        end for _ in 1:pop_size
+    ]
+
+    return pop
+    
+end
+
+
+
 
 
