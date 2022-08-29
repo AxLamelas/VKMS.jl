@@ -247,9 +247,9 @@ end
 
 
 function crossover(state,mating_pool,pop_size)
-    new_pop = eltype(mating_pool)[]
-    for _ in 1:div(pop_size,2)
-        append!(new_pop,crossover_elements(state,StatsBase.sample(mating_pool,2,replace=false)...))
+    new_pop = Vector{eltype(mating_pool)}(undef,pop_size)
+    for i in 1:2:pop_size
+        new_pop[i:i+1] = crossover_elements(state,StatsBase.sample(mating_pool,2,replace=false)...)
     end
 
     return new_pop
