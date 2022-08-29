@@ -1,7 +1,7 @@
 using Flatten
 using Distributions: Levy
 
-function polynomial_mutation(s::Param; p::Number=0.5, η::Number = 2)
+function polynomial_mutation(s::Param; p::P=0.5, η::E = 2) where {E <: Real, P <: Real}
     if (rand() < p)
         if s.val isa Bool return Param(!s.val,s.lb,s.ub) end
         r = rand()
@@ -51,7 +51,7 @@ function mutate_element(state::AbstractOptimParameters, elem::AbstractModel)
 end
 
 
-function similar_population(initial_s::AbstractModel, pop_size::Int; η::Number = 500., pl::Number = 0.2)
+function similar_population(initial_s::AbstractModel, pop_size::Int; η::E = 500., pl::P = 0.2) where {E <: Real, P <: Real}
     pop = Vector{typeof(initial_s)}(undef,pop_size)
     @floop for i in 1:pop_size
         pop[i] = mutate_element(MutationParameters(promote(η,1.,pl)...), initial_s)
@@ -59,7 +59,7 @@ function similar_population(initial_s::AbstractModel, pop_size::Int; η::Number 
     return pop
 end
 
-function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Function; gen_multiplier::Int = 10, η::Number = 500.,pl::Number = 0.2)
+function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Function; gen_multiplier::Int = 10, η::E = 500.,pl::P = 0.2) where {E <: Real, P <: Real}
     @assert gen_multiplier >= 1 "Generation multiplier should be at least 1"
     if gen_multiplier == 1 return similar_population(initial_s,pop_size, η = η) end
 
@@ -105,7 +105,7 @@ function selection(rank, distance, number_in_tournament=2)
 end
 
 
-function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVector{W}; p::Number=0.5) where {T <: AbstractMetaVariable, W <: AbstractMetaVariable}
+function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVector{W}; p::P=0.5) where {T <: AbstractMetaVariable, W <: AbstractMetaVariable, P <: Real}
     n1 = length(m1)
     n2 = length(m2)
     
@@ -185,14 +185,14 @@ end
 
 
 
-function simulated_binary_crossover(p1::Param,p2::Param;p::Number=0.5,η::Number=2)
+function simulated_binary_crossover(p1::Param{T},p2::Param{T};p::P=0.5,η::E=2) where {T,P <: Real,E <: Real}
     if rand() >= p return p1,p2 end
     u = rand()
     β = u <= 0.5 ? (2u)^(1/(η+1)) : (2(1-u))^(-1/(η+1))
     return 0.5((1-β)*p1+(1+β)*p2),  0.5((1+β)*p1+(1-β)*p2)
 end
 
-function uniform_crossover(p1::Param,p2::Param;p::Number=0.5)
+function uniform_crossover(p1::Param{T},p2::Param{T};p::P=0.5) where {T,P <: Real}
     if rand() < p
         return p2,p1
     else
@@ -201,12 +201,13 @@ function uniform_crossover(p1::Param,p2::Param;p::Number=0.5)
 end
 
 
-function crossover_elements(state, p1::AbstractModel,p2::AbstractModel)
+function crossover_elements(state, p1::T,p2::T) where {T <: AbstractModel}
     # Crossover fixed length fields
     fixed_p1 = flatten(p1,Param,VLGroup)
     fixed_p2 = flatten(p2,Param,VLGroup)
 
-    fixed_v1::typeof(fixed_p1),fixed_v2::typeof(fixed_p2) = zip(map(v -> begin
+    
+    fixed_v1,fixed_v2 = zip(map(v -> begin
             if isfixed(v[1]) || isfixed(v[2]) || !(typeof(v[1].val) <: AbstractFloat && typeof(v[2].val) <: AbstractFloat)
                 return uniform_crossover(v[1],v[2],p=state.pc)
             else
@@ -238,8 +239,8 @@ function crossover_elements(state, p1::AbstractModel,p2::AbstractModel)
         zip(vl_p1,vl_p2)
     )...)
 
-    c1 = reconstruct(fixed_c1,vl_v1,VLGroup)
-    c2 = reconstruct(fixed_c2,vl_v2,VLGroup)
+    c1::T = reconstruct(fixed_c1,vl_v1,VLGroup)
+    c2::T = reconstruct(fixed_c2,vl_v2,VLGroup)
 
     return c1,c2
 end
