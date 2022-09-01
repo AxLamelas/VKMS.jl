@@ -168,7 +168,7 @@ function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVe
 
 
     nm = length(groups)
-    n_swap = rand(1:div(nm,2)) # How many to swap
+    n_swap = nm <= 3 ? 1 : rand(1:div(nm,2)) # How many to swap
     to_swap = rand(1:nm,n_swap) # Which ones to swap
     #rem = filter(x-> !(x in to_swap),1:nm) # The remaining
     
