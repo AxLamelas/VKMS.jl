@@ -1,5 +1,4 @@
 using Flatten
-using Distributions: Levy
 
 function polynomial_mutation(s::Param; p::P=0.5, η::E = 2) where {E <: Real, P <: Real}
     if (rand() < p)
@@ -38,7 +37,7 @@ function mutate_element(state::AbstractOptimParameters, elem::AbstractModel)
                     new,
                     g.id,
                     modify(
-                        v -> polynomial_mutation(v,p=1,η=state.ηm),
+                        v -> polynomial_mutation(v,p=state.pm,η=state.ηm),
                         rand([v for v in g.metavariables if !any(isfixed.(v))]),
                         Param
                     )
@@ -105,41 +104,40 @@ function selection(rank, distance, number_in_tournament=2)
 end
 
 
-function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVector{W}; p::P=0.5) where {T <: AbstractMetaVariable, W <: AbstractMetaVariable, P <: Real}
+
+
+function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVector{T}) where {T <: AbstractMetaVariable}
     n1 = length(m1)
     n2 = length(m2)
+
+    W = number_type(T)
+    lb::Vector{W} = minimum(hcat([[v.lb for v in mi] for mi in vcat(m1,m2)]...),dims=2)[:]
+    ub::Vector{W} = maximum(hcat([[v.ub for v in mi] for mi in vcat(m1,m2)]...),dims=2)[:]
+    variable_range = ub-lb
+
+    dissimilarity = Matrix{W}(undef,n1,n2)
     
-
-    lb = minimum(hcat([[v.lb for v in mi] for mi in vcat(m1,m2)]...),dims=2)
-    ub = maximum(hcat([[v.ub for v in mi] for mi in vcat(m1,m2)]...),dims=2)
-    variable_range = reshape(ub-lb,:)
-
-    dissimilarity = Matrix{Float64}(undef,n1,n2)
-    for j in 1:n1
-        for k in 1:n2
-            dissimilarity[j,k] = 0.5 * sum(abs.(m1[j] .- m2[k]) ./ variable_range) 
-        end
+    for k in 1:n2, j in 1:n1
+        dissimilarity[j,k] = 0.5 * sum(abs.(m1[j] .- m2[k]) ./ variable_range) 
     end
-  
-    
-    preference_p1 = [findmin(dissimilarity[i,:])[2] for i in 1:n1]
-    preference_p2 = [findmin(dissimilarity[:,i])[2] for i in 1:n2]
 
-    groups = Dict()
-    missing_association = collect(1:n2)
+    preference_p1 = argmin.(eachrow(dissimilarity))
+    preference_p2 = argmin.(eachcol(dissimilarity))
 
+    groups = Dict{Set{Int},Set{Int}}()
+    missing_association = Set(1:n2)
     while !isempty(missing_association)
         p2_elem = pop!(missing_association)
         # For termination
-        old_g_p1 = []
+        old_g_p1 = Set{Int}()
         # All elements of parent 2 that prefer the p1 element
-        g_p1 = findall(x -> x == p2_elem, preference_p1) 
+        g_p1 = Set(findall(x -> x == p2_elem, preference_p1))
         # If none of parent 2 prefer the p1 element skip it
         if isempty(g_p1)
             continue
         end
         # To store associated elements of parent 1
-        g_p2 = Int[]
+        g_p2 = Set{Int}()
         while true
             # If the associated elements of parent one do not change break
             if old_g_p1 == g_p1
@@ -150,36 +148,46 @@ function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVe
             old_g_p1 = g_p1
 
             # Add all elements of parent 1 that have the same preference in parent 2
-            append!(g_p2,findall(x -> any(x .== g_p1), preference_p2))
-            g_p2 = unique(g_p2)
+            union!(g_p2, findall(x -> x in g_p1, preference_p2))
 
             # Add all elements of parent 2 that prefere one of the elements in the parent 1 group
-            g_p1 = unique(vcat(g_p1,findall(x -> any(x .== g_p2), preference_p1)))
+            union!(g_p1,findall(x -> x in g_p2, preference_p1))
         end
 
         # Dead end
         if isempty(g_p2)
             continue
         end
-
         # Remove new association from missing
-        missing_association = [v for v in missing_association if !(v in g_p2)]
+        for v in g_p2
+            delete!(missing_association,v)
+        end
         # Create new association
         groups[g_p1] = g_p2
     end
 
-    # Construct new field
-    c1 = typeof(m1)(undef,0) 
-    c2 = typeof(m2)(undef,0)
-    for (v1,v2) in groups
-        if rand() < p
-            c1 = vcat(c1, m2[v2] )
-            c2 = vcat(c2, m1[v1])
+
+    nm = length(groups)
+    n_swap = rand(1:div(nm,2)) # How many to swap
+    to_swap = rand(1:nm,n_swap) # Which ones to swap
+    #rem = filter(x-> !(x in to_swap),1:nm) # The remaining
+    
+    c1 = T[]
+    c2 = T[]
+    for (i,(k,v)) in enumerate(groups)
+        if i in to_swap
+            push!(c1,[m2[vi] for vi in v] ...)
+            push!(c2,[m1[ki] for ki in k] ...)
         else
-            c1 = vcat(c1, m1[v1])
-            c2 = vcat(c2, m2[v2])
+            push!(c1,[m1[ki] for ki in k] ...)
+            push!(c2,[m2[vi] for vi in v] ...)
         end
     end
+
+
+    # c1 = vcat(m2[union(collect(values(groups))[to_swap]...)...]...,m1[union(collect(keys(groups))[rem]...)] ...)
+    # c2 = vcat(m1[union(collect(keys(groups))[to_swap]...)]...,m2[union(collect(values(groups))[rem]...)] ...)
+    
     return c1,c2
 end
 
@@ -206,7 +214,6 @@ function crossover_elements(state, p1::T,p2::T) where {T <: AbstractModel}
     fixed_p1 = flatten(p1,Param,VLGroup)
     fixed_p2 = flatten(p2,Param,VLGroup)
 
-    
     fixed_v1,fixed_v2 = zip(map(v -> begin
             if isfixed(v[1]) || isfixed(v[2]) || !(typeof(v[1].val) <: AbstractFloat && typeof(v[2].val) <: AbstractFloat)
                 return uniform_crossover(v[1],v[2],p=state.pc)
@@ -244,7 +251,6 @@ function crossover_elements(state, p1::T,p2::T) where {T <: AbstractModel}
 
     return c1,c2
 end
-
 
 function crossover(state,mating_pool,pop_size)
     new_pop = Vector{eltype(mating_pool)}(undef,pop_size)
@@ -284,5 +290,6 @@ function constraints(
     
     return c_violation
 end
+
 
 
