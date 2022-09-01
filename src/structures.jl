@@ -4,6 +4,19 @@ using Distributions: Uniform
 using AbstractNumbers
 using Interpolations
 
+# abstract type AbstractMutationProbability end
+
+# struct FixedMutationProbability{T<:Number} <: AbstractMutationProbability
+#     pm::T
+# end
+
+# struct BinomialMutationProbability{T<:Number} <: AbstractMutationProbability
+#     mean::T
+# end
+
+
+# @inline mutation_probability(_::AbstractModel, m::FixedMutationProbability) = m.pm
+# mutation_probability(elem::AbstractModel, m::FixedMutationProbability) = m.mean / length(elem)
 
 abstract type AbstractOptimParameters end
 
@@ -51,6 +64,9 @@ Base.:-(a::Param,b::Param) = Param(promote(a.val-b.val, a.lb >= b.lb ? a.lb : b.
 Base.:*(a::Param,b::Param) = Param(promote(a.val*b.val, a.lb >= b.lb ? a.lb : b.lb, a.ub <= b.ub ? a.ub : b.ub)...)
 Base.:/(a::Param,b::Param) = Param(promote(a.val/b.val, a.lb >= b.lb ? a.lb : b.lb, a.ub <= b.ub ? a.ub : b.ub)...)
 
+number_type(::Param{T}) where {T} = T
+number_type(::Type{Param{T}}) where {T} = T
+
 abstract type AbstractMetaVariable end
 
 Base.iterate(m::AbstractMetaVariable,state=1) = state > nfields(m) ? nothing : (getfield(m,fieldname(typeof(m),state)),state+1)
@@ -78,6 +94,8 @@ randomPoint(xrange::Tuple{Number,Number},yrange::Tuple{Number,Number}) = Point(r
 randomPoint(range::Tuple{Number,Number}) = randomPoint(range,range)
 
 Base.length(::Point) = 2
+number_type(::Point{T}) where {T} = T
+number_type(::Type{Point{T}}) where {T} = T
 
 struct VLGroup{N,W<: AbstractMetaVariable}
     id::UUID 
@@ -116,6 +134,8 @@ end
 
 Base.length(x::KnotModel) = nfields(x)-1+length(x.knots)
 get_n_metavariables(x::KnotModel) = (length(x.knots),)
+number_type(::KnotModel{T}) where {T} = T
+number_type(::Type{KnotModel{T}}) where {T} = T
 
 
 function correct_same_x!(xs::AbstractVector)
