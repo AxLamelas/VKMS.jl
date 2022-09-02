@@ -54,13 +54,13 @@ end
 function crowding_distance(front)
     l = length(front)
     distance = zeros(l)
-    matrix = hcat(front...)
+    matrix = vcat(front'...)
     for m in 1:length(front[1])
-        perm = sortperm(matrix[m,:])
+        perm = sortperm(matrix[:,m])
         distance[perm[1]] = Inf
         distance[perm[end]] = Inf
         for i in 2:l-1
-            distance[i] += (matrix[m,perm[i+1]]-matrix[m,perm[i-1]])/(matrix[m,perm[end]]-matrix[m,perm[1]])
+            distance[perm[i]] += (matrix[perm[i+1],m]-matrix[perm[i-1],m])/(matrix[perm[end],m]-matrix[perm[1],m])
         end
     end
     return  distance
