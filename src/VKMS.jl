@@ -31,7 +31,7 @@ end
 
 function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector)
     function fitness(state::OptimParameters,m::AbstractModel)
-        residuals = y .- functional(x,m)
+        residuals = Float16.(y .- functional(x,m))
         if state.helper == :more
             [- residuals' * (weigths .* residuals) , sum(get_n_metavariables(m))]
         elseif state.helper == :less
@@ -50,7 +50,7 @@ end
 
 function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector)
     function fitness(state::OptimParameters,m::AbstractModel)
-        residuals = y .- functional(x,m)
+        residuals = Float16.(y .- functional(x,m))
         if state.helper == :more
             [- residuals' * residuals , sum(get_n_metavariables(m))]
         elseif state.helper == :less
