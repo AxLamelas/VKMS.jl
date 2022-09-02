@@ -188,9 +188,10 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
             union!(selected,fronts[ind][sortperm(distance,rev=true)[1:remaining]])
         end
         
-        pop = pool[collect(selected)]
+        indexes = collect(selected)
+        pop = pool[indexes]
 
-        pop, state = scheduler(gen,pop,pool_perf[selected],constraint_violation[selected],rank[selected],state)
+        pop, state = scheduler(gen,pop,pool_perf[indexes],constraint_violation[indexes],rank[indexes],state)
 
         # # Emigration
         # n_emigrants = 3
