@@ -19,8 +19,8 @@ function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr:
         if rand() < pr
             n_remove = floor(Int,log(rand())/log(state.p_change_length))
             removable = [i for i in 1:length(g) if  !any(isfixed.(g.metavariables[i]))]
-            # Only remove if there will remain at least two nodes and a non-fixed node
-            if (length(g) >= (n_remove + 2)) && (length(removable) > n_remove) && (n_remove != 0)
+            # Only remove if there will remain at least two non-fixed nodes, because, otherwise the metavariable recombination does nothing
+            if (n_remove != 0) && (length(removable) > (n_remove + 2))
                 @debug "Removing $n_remove random knot(s)"
                 for _ in 1:n_remove
                     new = deleteat(new,g.id,rand(removable)) 
@@ -106,6 +106,14 @@ function selection(rank, distance, number_in_tournament=2)
 end
 
 
+
+function cut_and_slice_recombination(m1::AbstractVector{T},m2::AbstractVector{T}) where {T <: AbstractMetaVariable}
+    points1 = sort(rand(1:length(m1),2))
+    points2 = sort(rand(1:length(m2),2))
+    
+    vcat(m1[1:points1[1]],m2[points2[1]:points2[2]],m1[points1[2]:end]), vcat(m2[1:points2[1]],m1[points1[1]:points1[2]],m2[points2[2]:end])
+
+end
 
 
 function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVector{T}) where {T <: AbstractMetaVariable}
