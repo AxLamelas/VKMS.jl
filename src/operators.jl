@@ -111,11 +111,12 @@ function cut_and_slice_recombination(m1::AbstractVector{T},m2::AbstractVector{T}
     points1 = sort(rand(1:length(m1),2))
     points2 = sort(rand(1:length(m2),2))
     
-    vcat(m1[1:points1[1]],m2[points2[1]:points2[2]],m1[points1[2]:end]), vcat(m2[1:points2[1]],m1[points1[1]:points1[2]],m2[points2[2]:end])
+    # The +1 are required so that the same element is not considered multiple times
+    vcat(m1[1:points1[1]],m2[points2[1]+1:points2[2]],m1[points1[2]+1:end]), vcat(m2[1:points2[1]],m1[points1[1]+1:points1[2]],m2[points2[2]+1:end])
 
 end
 
-
+# Similar-metavariable recombination - Reyerkerk et al. 2017
 function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVector{T}) where {T <: AbstractMetaVariable}
     n1 = length(m1)
     n2 = length(m2)
@@ -180,7 +181,7 @@ function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVe
     nm = length(groups)
     n_swap = nm <= 3 ? 1 : rand(1:div(nm,2)) # How many to swap
     to_swap = rand(1:nm,n_swap) # Which ones to swap
-    #rem = filter(x-> !(x in to_swap),1:nm) # The remaining
+
     
     c1 = T[]
     c2 = T[]
@@ -194,10 +195,6 @@ function similar_metavariable_recombination(m1::AbstractVector{T},m2::AbstractVe
         end
     end
 
-
-    # c1 = vcat(m2[union(collect(values(groups))[to_swap]...)...]...,m1[union(collect(keys(groups))[rem]...)] ...)
-    # c2 = vcat(m1[union(collect(keys(groups))[to_swap]...)]...,m2[union(collect(values(groups))[rem]...)] ...)
-    
     return c1,c2
 end
 
@@ -240,7 +237,6 @@ function crossover_elements(state, p1::T,p2::T) where {T <: AbstractModel}
     vl_p1 = flatten(fixed_c1, VLGroup)
     vl_p2 = flatten(fixed_c2, VLGroup)
 
-    # Similar-metavariable recombination - Reyerkerk et al. 2017
     vl_v1,vl_v2 = zip(map(g -> begin
             m1 = flatten(g[1],AbstractMetaVariable)
             m2 = flatten(g[2],AbstractMetaVariable)
