@@ -158,7 +158,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
         rank, fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
         
 
-        selected = Int[]
+        selected = Set{Int}()
         # Main obj elitism
         try
             if (state.n_main_obj_elitism != 0)
@@ -178,17 +178,17 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
                 ind = i
                 break
             end
-            selected = unique(vcat(selected,fronts[i]))
+            union!(selected,fronts[i])
         end
 
         # Append the remaining base on distance
         remaining = state.pop_size-length(selected)
         if remaining != 0
             distance = crowding_distance(pool_perf[fronts[ind]])
-            append!(selected,fronts[ind][sortperm(distance,rev=true)[1:remaining]])
+            union!(selected,fronts[ind][sortperm(distance,rev=true)[1:remaining]])
         end
         
-        pop = pool[selected]
+        pop = pool[collect(selected)]
 
         pop, state = scheduler(gen,pop,pool_perf[selected],constraint_violation[selected],rank[selected],state)
 
