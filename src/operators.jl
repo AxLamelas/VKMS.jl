@@ -12,37 +12,39 @@ function polynomial_mutation(s::Param; p::P=0.5, η::E = 2) where {E <: Real, P 
 end
 
 
-function mutate_element(state::AbstractOptimParameters, elem::AbstractModel)
+function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr::T = 0.5) where {T <: Real}
     new::typeof(elem) = modify(v -> isfixed(v) ? v : polynomial_mutation(v,η=state.ηm,p=state.pm), elem, Param)
 
     for g in flatten(elem,VLGroup)
-        # First remove so that the added node (from mutation) cannot be removed in the same call
-        n_remove = floor(Int,log(rand())/log(state.p_change_length))
-        removable = [i for i in 1:length(g) if  !any(isfixed.(g.metavariables[i]))]
-        # Only remove if there will remain at least two nodes and a non-fixed node
-        if (length(g) >= (n_remove + 2)) && (length(removable) > n_remove) && (n_remove != 0)
-            @debug "Removing $n_remove random knot(s)"
-            for _ in 1:n_remove
-                new = deleteat(new,g.id,rand(removable)) 
+        if rand() < pr
+            n_remove = floor(Int,log(rand())/log(state.p_change_length))
+            removable = [i for i in 1:length(g) if  !any(isfixed.(g.metavariables[i]))]
+            # Only remove if there will remain at least two nodes and a non-fixed node
+            if (length(g) >= (n_remove + 2)) && (length(removable) > n_remove) && (n_remove != 0)
+                @debug "Removing $n_remove random knot(s)"
+                for _ in 1:n_remove
+                    new = deleteat(new,g.id,rand(removable)) 
+                end
             end
-        end
+        else
 
-        n_add = floor(Int,log(rand())/log(state.p_change_length))
+            n_add = floor(Int,log(rand())/log(state.p_change_length))
 
-        if n_add != 0
-            @debug "Inserting $n_add random knot(s)"            
-            for _ in n_add
-                # Mutate an existing non-fixed knot
-                new = push(
-                    new,
-                    g.id,
-                    modify(
-                        v -> polynomial_mutation(v,p=state.pm,η=state.ηm),
-                        rand([v for v in g.metavariables if !any(isfixed.(v))]),
-                        Param
+            if n_add != 0
+                @debug "Inserting $n_add random knot(s)"            
+                for _ in n_add
+                    # Mutate an existing non-fixed knot
+                    new = push(
+                        new,
+                        g.id,
+                        modify(
+                            v -> polynomial_mutation(v,p=state.pm,η=state.ηm),
+                            rand([v for v in g.metavariables if !any(isfixed.(v))]),
+                            Param
+                        )
                     )
-                )
 
+                end
             end
         end
     end
