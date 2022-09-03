@@ -87,23 +87,72 @@ function mutate!(state, pop)
 end
 
 # Tournament selection
-function selection(rank, distance, number_in_tournament=2)
-    pop_size = length(rank)
+# function selection(rank, distance, number_in_tournament=2)
+#     pop_size = length(rank)
 
-    mating_pool = Vector{Int}(undef,pop_size)
-    @floop for i in 1:pop_size
-        best = rand(1:pop_size)
-        for _ in 1:number_in_tournament-1
-            candidate = rand(1:pop_size)
-            if nondominated_better(rank[candidate],rank[best],distance[candidate],distance[best])
-                best = candidate
-            end
+#     mating_pool = Vector{Int}(undef,pop_size)
+#     @floop for i in 1:pop_size
+#         best = rand(1:pop_size)
+#         for _ in 1:number_in_tournament-1
+#             candidate = rand(1:pop_size)
+#             if nondominated_better(rank[candidate],rank[best],distance[candidate],distance[best])
+#                 best = candidate
+#             end
+#         end
+#         mating_pool[i] = best
+#     end
+    
+#     return mating_pool
+# end
+
+
+unique_dict(v::AbstractVector) = Dict(k => findall(x -> x == k, v) for k in unique(v))
+
+# Unique fitness tournament selection 10.1145/2463372.2463456
+function selection(pop_size::Int, F::Set{FitnessEvaluation{T}}) where {T}
+    
+    n_unique = length(F)
+    if n_unique == 1
+        return collect(1:pop_size)
+    end
+
+    S = Set{Int}()
+    while length(S) != pop_size
+        k = min(2*(pop_size-length(S)),n_unique)
+        G = rand(F,k)
+        for i in 1:(k-1)
+
+            p = if nondominated_better(G[i].rank,G[i + 1].rank,G[i].distance,G[i + 1].distance)
+                G[i]
+            elseif nondominated_better(G[i + 1].rank,G[i].rank,G[i + 1].distance,G[i].distance)
+                G[i + 1]
+            else
+                G[i + rand(0:1)]
+            end 
+            push!(S,rand(p.elems))    
         end
-        mating_pool[i] = best
     end
     
-    return mating_pool
+    return collect(S)
 end
+
+function last_front_selection(k::Int,F::AbstractVector{FitnessEvaluation{T}}) where {T}
+    F = sort(deepcopy(F))
+
+    S = Set{Int}()
+    j = 1
+    while length(S) != k
+        if !isempty(F[j].elems)
+            s = rand(F[j].elems)
+            push!(S,s)
+            delete!(F[j].elems,s)
+        end
+        j = mod(j,length(F)) + 1
+    end
+    return S
+end
+
+
 
 
 
@@ -258,13 +307,10 @@ function crossover_elements(state, p1::T,p2::T) where {T <: AbstractModel}
     return c1,c2
 end
 
-function crossover(state,mating_pool,pop_size)
-    new_pop = Vector{eltype(mating_pool)}(undef,pop_size)
-    for i in 1:2:pop_size
-        new_pop[i:i+1] .= crossover_elements(state,StatsBase.sample(mating_pool,2,replace=false)...)
+function crossover!(state,pop,mating_pool)
+    for i in 1:2:state.pop_size
+        pop[i:i+1] .= crossover_elements(state,StatsBase.sample(mating_pool,2,replace=false)...)
     end
-
-    return new_pop
 end
 
                                         

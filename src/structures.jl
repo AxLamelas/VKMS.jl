@@ -18,6 +18,16 @@ using Interpolations
 # @inline mutation_probability(_::AbstractModel, m::FixedMutationProbability) = m.pm
 # mutation_probability(elem::AbstractModel, m::FixedMutationProbability) = m.mean / length(elem)
 
+
+struct FitnessEvaluation{T<:Real}
+    val::AbstractVector{T}
+    rank::Int
+    distance::T
+    elems::Set{Int}
+end
+
+Base.isless(a::FitnessEvaluation{T}, b::FitnessEvaluation{T}) where {T} = a.distance > b.distance # So that default is descending orther of crowding_distance
+
 abstract type AbstractOptimParameters end
 
 struct MutationParameters{T<:Number} <: AbstractOptimParameters

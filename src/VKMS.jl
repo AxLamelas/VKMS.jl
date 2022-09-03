@@ -90,7 +90,7 @@ function identity_scheduler(
     return pop,p
 end
 
-function evolve(pop::AbstractVector{T}, fitness_function::Function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50,scheduler=identity_scheduler)::Vector{T} where {T} # stopping_tol=nothing,
+function evolve(pop::AbstractVector{T}, fitness_function::Function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50,scheduler=identity_scheduler)::Vector{T} where {T<:AbstractModel} # stopping_tol=nothing,
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
     @assert length(pop) == state.pop_size "Inconsistancy between the legth of the population and the population size in the state"
     @assert rem(state.pop_size,2) == 0 "Population size must be divisible by 2"
@@ -98,6 +98,10 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
     gen = 0
     # no_change_counter = 0
     # previous_convergence_metric = Inf
+    
+    # Initialization of the pop candidate
+    pop_candidate = deepcopy(pop)
+    mutate!(state,pop_candidate)
 
     if !isnothing(info_every) @info "Starting evolution with state $state" end
     while true
@@ -115,22 +119,22 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
         gen +=  1
 
         @debug "Current state: $state"
-        @debug "Evaluating parent population"
-        pop_perf = evaluate(state,pop,fitness_function)
-        constraint_violation = constraints(state, pop, pop_perf)
-        rank, _ = fast_non_dominated_sort(pop_perf,constraint_violation)
-        distance = crowding_distance(pop_perf,rank)
+        
+        pool = vcat(pop,pop_candidate)
+        pool_perf = evaluate(state,pool,fitness_function)
+        constraint_violation = constraints(state, pool, pool_perf)
+        fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
 
         if !isnothing(info_every) && mod(gen-1,info_every) == 0
             @info begin
-                sizes = [get_n_metavariables(v) for v in pop[constraint_violation .== 0.]]
+                sizes = [get_n_metavariables(v) for v in pool[constraint_violation .== 0.]]
                 l = length(sizes[1])
                 mins = [minimum(getindex.(sizes,i)) for i in 1:l]
                 maxs = [maximum(getindex.(sizes,i)) for i in 1:l]
                 
                 """
                 Generation $(gen) - $(hmss(t))
-                Best per objective: $([maximum([isnan(v[i]) ? -Inf : v[i] for v in pop_perf[constraint_violation .== 0.]]) for i in 1:length(pop_perf[1])])
+                Best per objective: $([pool_perf[argmax([isnan(v[i]) ? -Inf : v[i] for v in pool_perf[constraint_violation .== 0.]])] for i in 1:length(pool_perf[1])])
                 Minimum metavariables: $mins
                 Maximum metavariables: $maxs
                 """
@@ -138,25 +142,6 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
                 # Current metric: $current_convergence_metric
             end
         end
-
-        @debug "Number of ranks: $(maximum(rank))"
-
-
-        @debug "Generating candidate child population"
-        mating_pool = selection(rank,distance)
-        pop_candidate = crossover(state,pop[mating_pool],state.pop_size)
-
-        mutate!(state,pop_candidate)
-
-        @debug "Evaluating candidate child population performance"
-        pop_candidate_perf = evaluate(state,pop_candidate,fitness_function)
-
-        @debug "Ranking joint pool - NSGA II + Main objective elitism"
-        pool = vcat(pop,pop_candidate)
-        pool_perf = vcat(pop_perf,pop_candidate_perf)
-        constraint_violation = constraints(state, pool, pool_perf)
-        rank, fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
-        
 
         selected = Set{Int}()
         # Main obj elitism
@@ -171,27 +156,45 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
         catch 
             nothing
         end
+        
         # Determine non-dominated rank that complitely fits in pop_size
         ind = 0
-        for (i,v) in enumerate(length.(fronts))
-            if (length(selected) + v) > state.pop_size
+        F = [Set{FitnessEvaluation{ eltype(first(pool_perf))}}() for _ in 1:length(fronts)]
+        for (i,fi) in enumerate(fronts)
+            ufit = unique_dict(pool_perf[fi])
+            dist = crowding_distance(collect(keys(ufit)))
+            union!(F[i],[FitnessEvaluation(k,i,dist[j],Set(fi[v])) for (j,(k,v)) in  enumerate(ufit)])
+            
+            if (length(selected) + length(fi)) > state.pop_size
                 ind = i
                 break
             end
             union!(selected,fronts[i])
         end
-
+        
         # Append the remaining base on distance
         remaining = state.pop_size-length(selected)
-        if remaining != 0
-            distance = crowding_distance(pool_perf[fronts[ind]])
-            union!(selected,fronts[ind][sortperm(distance,rev=true)[1:remaining]])
+        if remaining == 0
+            ind -= 1
+        else
+            S = last_front_selection(remaining, collect(F[ind]))
+            for v in F[ind] # remove elements not selected from last front
+                filter!(x -> x in S,v.elems)
+            end
+            filter!(x -> !isempty(x.elems), F[ind])
+
+            union!(selected,S)
         end
         
         indexes = collect(selected)
         pop = pool[indexes]
 
-        pop, state = scheduler(gen,pop,pool_perf[indexes],constraint_violation[indexes],rank[indexes],state)
+        mating_pool = selection(state.pop_size,union(F[1:ind]...))
+        crossover!(state,pop_candidate,pool[mating_pool])
+        mutate!(state,pop_candidate)
+
+
+        #pop, state = scheduler(gen,pop,pool_perf[indexes],constraint_violation[indexes],rank[indexes],state)
 
         # # Emigration
         # n_emigrants = 3
