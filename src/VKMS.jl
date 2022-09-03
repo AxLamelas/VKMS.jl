@@ -92,7 +92,7 @@ function identity_scheduler(
     return pop,p
 end
 
-function evolve(pop::AbstractVector{T}, fitness_function::Function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50,scheduler=identity_scheduler)::Vector{T} where {T<:AbstractModel} # stopping_tol=nothing,
+function evolve(pop::AbstractVector{T}, fitness_function::Function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50)::Vector{T} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
     @assert length(pop) == state.pop_size "Inconsistancy between the legth of the population and the population size in the state"
     @assert rem(state.pop_size,2) == 0 "Population size must be divisible by 2"
