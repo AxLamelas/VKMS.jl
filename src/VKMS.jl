@@ -178,7 +178,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
 
         if !isnothing(info_every) && mod(gen-1,info_every) == 0
             @info begin
-                "\nGeneration $(gen) - $(hmss(t)) \nFirst front:\n" * join([v.val for v in F[1]],"\n")
+                "\nGeneration $(gen) - $(hmss(t)) \nFirst front:\n" * join(sort([v.val for v in F[1]],rev=true),"\n")
             end
         end
 
