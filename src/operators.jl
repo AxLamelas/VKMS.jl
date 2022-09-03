@@ -106,7 +106,7 @@ end
 # end
 
 
-unique_dict(v::AbstractVector) = Dict(k => findall(x -> x == k, v) for k in unique(v))
+unique_dict(v::AbstractVector) = Dict(k => findall(x -> x ≈ k, v) for k in unique(v))
 
 # Unique fitness tournament selection 10.1145/2463372.2463456
 function selection(pop_size::Int, F::Set{FitnessEvaluation{T}}) where {T}
@@ -137,7 +137,8 @@ function selection(pop_size::Int, F::Set{FitnessEvaluation{T}}) where {T}
 end
 
 function last_front_selection(k::Int,F::AbstractVector{FitnessEvaluation{T}}) where {T}
-    F = sort(deepcopy(F))
+    # The random is so that if the set only contains bounds, it will be [Inf,Inf], therefore it does not matter which one is selected, but it should not be always the same because it will induce bias in the population
+    F = sort(deepcopy(F),lt= (a,b) -> a.distance ≈ b.distance ? rand(Bool) : a.distance < b.distance, rev=true )
 
     S = Set{Int}()
     j = 1

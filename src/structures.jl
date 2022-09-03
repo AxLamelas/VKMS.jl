@@ -26,7 +26,6 @@ struct FitnessEvaluation{T<:Real}
     elems::Set{Int}
 end
 
-Base.isless(a::FitnessEvaluation{T}, b::FitnessEvaluation{T}) where {T} = a.distance > b.distance # So that default is descending orther of crowding_distance
 
 abstract type AbstractOptimParameters end
 
