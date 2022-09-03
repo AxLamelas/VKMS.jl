@@ -18,7 +18,7 @@ function fast_non_dominated_sort(pop_perf,constraint_violation)
     fronts = [Int[] for i in 1:2*length(pop_perf)]
     Sp = [Int[] for i in 1:length(pop_perf)]
     np = zeros(Int,length(pop_perf))
-    rank = zeros(Int,length(pop_perf))
+    #rank = zeros(Int,length(pop_perf))
     for (i,p) in enumerate(pop_perf)
         for (j,q) in enumerate(pop_perf)
             if constraint_dominates(p,q,constraint_violation[i],constraint_violation[j])
@@ -28,7 +28,7 @@ function fast_non_dominated_sort(pop_perf,constraint_violation)
             end
         end
         if np[i] == 0
-            rank[i] = 1
+            #rank[i] = 1
             push!(fronts[1],i)
         end
     end
@@ -40,7 +40,7 @@ function fast_non_dominated_sort(pop_perf,constraint_violation)
             for k in Sp[j]
                 np[k] -= 1
                 if np[k] == 0
-                    rank[k] = i+1
+                    #rank[k] = i+1
                     push!(Q,k)
                 end
             end
@@ -48,7 +48,7 @@ function fast_non_dominated_sort(pop_perf,constraint_violation)
         i += 1
         fronts[i] = Q
     end
-    return rank, [v for v in fronts if !isempty(v)]
+    return [v for v in fronts if !isempty(v)] #rank, [v for v in fronts if !isempty(v)]
 end
             
 function crowding_distance(front)
@@ -59,8 +59,13 @@ function crowding_distance(front)
         perm = sortperm(matrix[:,m])
         distance[perm[1]] = Inf
         distance[perm[end]] = Inf
+        r = (matrix[perm[end],m]-matrix[perm[1],m])
+        if r == 0
+            distance[perm[2:l-1]] .= 0.
+            continue
+        end
         for i in 2:l-1
-            distance[perm[i]] += (matrix[perm[i+1],m]-matrix[perm[i-1],m])/(matrix[perm[end],m]-matrix[perm[1],m])
+            distance[perm[i]] += (matrix[perm[i+1],m]-matrix[perm[i-1],m])/r
         end
     end
     return  distance
