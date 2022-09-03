@@ -92,7 +92,7 @@ function identity_scheduler(
     return pop,p
 end
 
-function evolve(pop::AbstractVector{T}, fitness_function::Function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing, info_every=50)::Vector{T} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
+function evolve(pop::AbstractVector{T}, fitness_function::Function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, info_every=50)::Vector{T} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
     @assert length(pop) == state.pop_size "Inconsistancy between the legth of the population and the population size in the state"
     @assert rem(state.pop_size,2) == 0 "Population size must be divisible by 2"
@@ -126,6 +126,11 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
         pool_perf = evaluate(state,pool,fitness_function)
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
+
+        if terminate_on_front_collapse && (length(fronts[1]) >= state.pop_size)
+            @info "Number of element in first front is greater than the population size. Terminating..."
+            break
+        end
 
         selected = Set{Int}()
         # Main obj elitism
