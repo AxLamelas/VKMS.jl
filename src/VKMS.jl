@@ -125,24 +125,6 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
 
-        if !isnothing(info_every) && mod(gen-1,info_every) == 0
-            @info begin
-                sizes = [get_n_metavariables(v) for v in pool[constraint_violation .== 0.]]
-                l = length(sizes[1])
-                mins = [minimum(getindex.(sizes,i)) for i in 1:l]
-                maxs = [maximum(getindex.(sizes,i)) for i in 1:l]
-                
-                """
-                Generation $(gen) - $(hmss(t))
-                Best per objective: $([pool_perf[argmax([isnan(v[i]) ? -Inf : v[i] for v in pool_perf[constraint_violation .== 0.]])] for i in 1:length(pool_perf[1])])
-                Minimum metavariables: $mins
-                Maximum metavariables: $maxs
-                """
-                # Relative change: $rel_change
-                # Current metric: $current_convergence_metric
-            end
-        end
-
         selected = Set{Int}()
         # Main obj elitism
         try
@@ -192,6 +174,13 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
         mating_pool = selection(state.pop_size,union(F[1:ind]...))
         crossover!(state,pop_candidate,pool[mating_pool])
         mutate!(state,pop_candidate)
+
+
+        if !isnothing(info_every) && mod(gen-1,info_every) == 0
+            @info begin
+                "First front:\n" * join([v.val for v in F[1]],"\n")
+            end
+        end
 
 
         #pop, state = scheduler(gen,pop,pool_perf[indexes],constraint_violation[indexes],rank[indexes],state)
