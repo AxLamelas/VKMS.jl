@@ -31,7 +31,7 @@ end
 
 function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector)
     function fitness(state::OptimParameters,m::AbstractModel)
-        residuals = Float16.(y .- functional(x,m))
+        residuals = y .- functional(x,m)
         if state.helper == :more
             [- residuals' * (weigths .* residuals) , sum(get_n_metavariables(m))]
         elseif state.helper == :less
@@ -50,7 +50,7 @@ end
 
 function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector)
     function fitness(state::OptimParameters,m::AbstractModel)
-        residuals = Float16.(y .- functional(x,m))
+        residuals = y .- functional(x,m)
         if state.helper == :more
             [- residuals' * residuals , sum(get_n_metavariables(m))]
         elseif state.helper == :less
@@ -98,12 +98,12 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
     gen = 0
     # no_change_counter = 0
     # previous_convergence_metric = Inf
-    
+
+    if !isnothing(info_every) @info "Starting evolution with state $state" end
+
     # Initialization of the pop candidate
     pop_candidate = deepcopy(pop)
     mutate!(state,pop_candidate)
-
-    if !isnothing(info_every) @info "Starting evolution with state $state" end
     while true
         if (!isnothing(max_gen)) && (gen >= max_gen)
             if !isnothing(info_every) @info "Finished: Reached maximum generation $(max_gen)" end
@@ -178,7 +178,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
 
         if !isnothing(info_every) && mod(gen-1,info_every) == 0
             @info begin
-                "First front:\n" * join([v.val for v in F[1]],"\n")
+                "\nGeneration $(gen) - $(hmss(t)) \nFirst front:\n" * join([v.val for v in F[1]],"\n")
             end
         end
 
