@@ -29,18 +29,19 @@ function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{
     return Dict([(v,pop[findmax([ s == v ? p : -Inf for (s,p) in collect(zip(sizes,perf)) ])[2]]) for v in u])
 end
 
-function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector)
+function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector; sigdigits=3)
     function fitness(state::OptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
+        ssr = round.(- residuals' * (weigths .* residuals),sigdigits=sigdigits)
         if state.helper == :more
-            [- residuals' * (weigths .* residuals) , sum(get_n_metavariables(m))]
+            [ssr , sum(get_n_metavariables(m))]
         elseif state.helper == :less
-            [- residuals' * (weigths .* residuals) , - sum(get_n_metavariables(m))]
+            [ssr , - sum(get_n_metavariables(m))]
         elseif state.helper == :none
-            [- residuals' * (weigths .* residuals)]
+            [ssr]
         elseif state.helper == :both
             v = sum(get_n_metavariables(m))
-            [- residuals' * (weigths .* residuals) , - v, v]
+            [ssr , - v, v]
         else
             throw(error("Unexpected helper: $(state.helper)"))
         end
@@ -48,18 +49,19 @@ function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVect
     return fitness
 end
 
-function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector)
+function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector; sigdigits=3)
     function fitness(state::OptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
+        ssr = round.(- residuals' * residuals; sigdigits=sigdigits)
         if state.helper == :more
-            [- residuals' * residuals , sum(get_n_metavariables(m))]
+            [ssr , sum(get_n_metavariables(m))]
         elseif state.helper == :less
-            [- residuals' * residuals , - sum(get_n_metavariables(m))]
+            [ssr , - sum(get_n_metavariables(m))]
         elseif state.helper == :none
-            [- residuals' * residuals]
+            [ssr]
         elseif state.helper == :both
             v = sum(get_n_metavariables(m))
-            [- residuals' * residuals , - v, v]
+            [ssr , - v, v]
         else
             throw(error("Unexpected helper: $(state.helper)"))
         end
