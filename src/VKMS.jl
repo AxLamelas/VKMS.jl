@@ -198,7 +198,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
         # pop[end-n_emigrants+1:end] = emigrants
     end
 
-    return pop
+    return pop, gen
     
 end
 
