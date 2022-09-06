@@ -29,7 +29,7 @@ function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{
     return Dict([(v,pop[findmax([ s == v ? p : -Inf for (s,p) in collect(zip(sizes,perf)) ])[2]]) for v in u])
 end
 
-function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector; sigdigits=3)
+function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector; sigdigits=4)
     function fitness(state::OptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
         ssr = round.(- residuals' * (weigths .* residuals),sigdigits=sigdigits)
