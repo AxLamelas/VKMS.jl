@@ -55,7 +55,7 @@ end
 function similar_population(initial_s::AbstractModel, pop_size::Int; η::E = 500., pl::P = 0.2) where {E <: Real, P <: Real}
     pop = Vector{typeof(initial_s)}(undef,pop_size)
     @floop for i in 1:pop_size
-        pop[i] = mutate_element(MutationParameters(promote(η,1.,pl)...), initial_s)
+        pop[i] = mutate_element(MutationParameters(promote(η,pl)...), initial_s)
     end
     return pop
 end
@@ -67,7 +67,7 @@ function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Fun
     size = pop_size*gen_multiplier
     pop = Vector{typeof(initial_s)}(undef,size)
     @floop for i in 1:(size)
-        pop[i] = mutate_element(MutationParameters(promote(η,1.,pl)...), initial_s)
+        pop[i] = mutate_element(MutationParameters(promote(η,pl)...), initial_s)
     end
 
     m = Vector{Number}(undef,size)
