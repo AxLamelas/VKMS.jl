@@ -251,7 +251,7 @@ end
 
 
 function simulated_binary_crossover(p1::Param{T},p2::Param{T};p::P=0.5,η::E=2) where {T,P <: Real,E <: Real}
-    if rand() >= p return p1,p2 end
+    if rand() < (1-p) return p1,p2 end
     u = rand()
     β = u <= 0.5 ? (2u)^(1/(η+1)) : (2(1-u))^(-1/(η+1))
     return 0.5((1-β)*p1+(1+β)*p2),  0.5((1+β)*p1+(1-β)*p2)
