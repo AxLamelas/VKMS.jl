@@ -11,7 +11,7 @@ using Test
 end
 
 @testset "Fit" begin
-    state = OptimParameters(64, 5.5, 0.05, 0.05, 50.0, 0.1, 2, :less, 2)
+    state = OptimParameters(100, 5.5, 0.05, 50.0, 0.1, 2, :less, 2)
     functional(x::AbstractVector,f) = @. 2f(x) + x + 1
     functional(x::AbstractVector,m::KnotModel) = functional(x,model_function_factory(m)) .+ m.m.val .+ m.b.val
     target_function = sin

@@ -13,7 +13,7 @@ end
 
 
 function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr::T = 0.5) where {T <: Real}
-    new::typeof(elem) = modify(v -> isfixed(v) ? v : polynomial_mutation(v,η=state.ηm,p=state.pm), elem, Param)
+    new::typeof(elem) = modify(v -> isfixed(v) ? v : polynomial_mutation(v,η=state.ηm,p=1/length(elem)), elem, Param)
 
     for g in flatten(elem,VLGroup)
         if rand() < pr
@@ -38,7 +38,7 @@ function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr:
                         new,
                         g.id,
                         modify(
-                            v -> polynomial_mutation(v,p=state.pm,η=state.ηm),
+                            v -> polynomial_mutation(v,p=1/length(elem),η=state.ηm),
                             rand([v for v in g.metavariables if !any(isfixed.(v))]),
                             Param
                         )

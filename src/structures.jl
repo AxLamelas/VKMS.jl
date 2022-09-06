@@ -31,14 +31,12 @@ abstract type AbstractOptimParameters end
 
 struct MutationParameters{T<:Number} <: AbstractOptimParameters
     ηm::T
-    pm::T
     p_change_length::T
 end
 
 struct OptimParameters{T<:Number} <: AbstractOptimParameters
     pop_size::Integer
     ηm::T
-    pm::T
     p_change_length::T
     ηc::T
     pc::T
