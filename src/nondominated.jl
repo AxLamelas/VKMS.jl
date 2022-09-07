@@ -15,10 +15,9 @@ function constraint_dominates(p_perf,q_perf,p_constraint_violation,q_constraint_
 end
 
 function fast_non_dominated_sort(pop_perf,constraint_violation)
-    fronts = [Int[] for i in 1:2*length(pop_perf)]
+    fronts = [Int[] for i in 1:length(pop_perf)]
     Sp = [Int[] for i in 1:length(pop_perf)]
     np = zeros(Int,length(pop_perf))
-    #rank = zeros(Int,length(pop_perf))
     for (i,p) in enumerate(pop_perf)
         for (j,q) in enumerate(pop_perf)
             if constraint_dominates(p,q,constraint_violation[i],constraint_violation[j])
@@ -28,7 +27,6 @@ function fast_non_dominated_sort(pop_perf,constraint_violation)
             end
         end
         if np[i] == 0
-            #rank[i] = 1
             push!(fronts[1],i)
         end
     end
@@ -40,7 +38,6 @@ function fast_non_dominated_sort(pop_perf,constraint_violation)
             for k in Sp[j]
                 np[k] -= 1
                 if np[k] == 0
-                    #rank[k] = i+1
                     push!(Q,k)
                 end
             end
@@ -48,7 +45,7 @@ function fast_non_dominated_sort(pop_perf,constraint_violation)
         i += 1
         fronts[i] = Q
     end
-    return [v for v in fronts if !isempty(v)] #rank, [v for v in fronts if !isempty(v)]
+    return filter!(x -> !isempty(x),fronts)
 end
             
 function crowding_distance(front)
