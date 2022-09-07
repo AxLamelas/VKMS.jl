@@ -38,7 +38,7 @@ function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr:
                         new,
                         g.id,
                         modify(
-                            v -> polynomial_mutation(v,p=1.,η=state.ηm), # Probability 1 to get a new knot
+                            v -> polynomial_mutation(v,p=1.,η=2.), # Probability 1 to get a new knot
                             rand([v for v in g.metavariables if !any(isfixed.(v))]),
                             Param
                         )
