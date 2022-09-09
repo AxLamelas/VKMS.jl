@@ -15,8 +15,8 @@ function constraint_dominates(p_perf,q_perf,p_constraint_violation,q_constraint_
 end
 
 function fast_non_dominated_sort(pop_perf,constraint_violation)
-    fronts = [Int[] for i in 1:length(pop_perf)]
-    Sp = [Int[] for i in 1:length(pop_perf)]
+    fronts = [Int[] for _ in 1:2*length(pop_perf)]
+    Sp = [Int[] for _ in 1:length(pop_perf)]
     np = zeros(Int,length(pop_perf))
     for (i,p) in enumerate(pop_perf)
         for (j,q) in enumerate(pop_perf)
