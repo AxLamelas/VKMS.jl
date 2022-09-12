@@ -163,7 +163,7 @@ function model_function_factory(m::KnotModel)
     ys = map(v -> v.y.val, m.knots)
     correct_same_x!(xs)
     perm = sortperm(xs)
-    return extrapolate(interpolate(xs[perm],ys[perm],SteffenMonotonicInterpolation()), Line())
+    return extrapolate(interpolate(xs[perm],ys[perm],SteffenMonotonicInterpolation()), Flat())
 end
 
 
