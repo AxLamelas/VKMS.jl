@@ -11,7 +11,7 @@ function polynomial_mutation(s::Param; p::P=0.5, η::E = 2) where {E <: Real, P 
     end 
 end
 
-
+# TODO: mutation and crossover operators must act in knots grouped by bounds, would allow to have knots "fixed inside intervals"
 function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr::T = 0.5) where {T <: Real}
     new::typeof(elem) = modify(v -> isfixed(v) ? v : polynomial_mutation(v,η=state.ηm,p=1/length(elem)), elem, Param)
 
@@ -107,6 +107,7 @@ end
 
 
 unique_dict(v::AbstractVector) = Dict(k => findall(x -> x ≈ k, v) for k in unique(v))
+unique_dict(v::AbstractVector,vals::AbstractVector) = Dict(k => vals[findall(x -> x ≈ k, v)] for k in unique(v))
 
 # Unique fitness tournament selection 10.1145/2463372.2463456
 function selection(pop_size::Int, F::Set{FitnessEvaluation{T}}) where {T}

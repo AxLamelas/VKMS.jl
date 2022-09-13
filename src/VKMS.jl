@@ -8,6 +8,7 @@ using Dates
 using StatsBase
 using Statistics
 using FLoops
+using ConstructionBase
 
 
 include("structures.jl")
@@ -102,7 +103,8 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
     # previous_convergence_metric = Inf
 
     if !isnothing(info_every) @info "Starting evolution with state $state" end
-
+    η = 2. .^(2:10)
+    state = setproperties(state,(ηm=2.,ηc=2.))
     # Initialization of the pop candidate
     pop_candidate = deepcopy(pop)
     mutate!(state,pop_candidate)
@@ -128,31 +130,44 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,state::Abstra
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
 
         if terminate_on_front_collapse && (length(fronts[1]) >= state.pop_size)
-            @info "Number of element in first front is greater than the population size. Terminating..."
-            break
-        end
+            if isempty(η)
+                @info "Finished all η steps. Terminating..."
+                break
+            end
+            v = popfirst!(η)
+            @info "Increasing η to $v"
+            state = setproperties(state,(ηm=v,ηc=v))
+            # Delete from first front so that most elements of other fronts are included (reintroduces diversity)
+            # Keep one or more copies of the unique elements of the first front
+            # More than one copie might be necessary depending on the number of elements in the first front
+            n_missing = state.pop_size - sum(length.(fronts[2:end])) + 1
+            u = unique_dict(pool_perf[fronts[1]],fronts[1])
+            to_keep = Int[]
+            while length(to_keep) < n_missing
+                for v in values(u)
+                    push!(to_keep,pop!(v))
+                end
+                filter!(p -> !isempty(p.second),u)
+            end
+            filter!(x -> x in to_keep,fronts[1])
+        end        
 
         selected = Set{Int}()
-        # Main obj elitism
-        try
-            if (state.n_main_obj_elitism != 0)
-                append!(selected, sortperm(
-                    [isnan(v[1]) ? -Inf : v[1] for v in pool_perf[constraint_violation .== 0.]],rev=true
-                    )[1:state.n_main_obj_elitism]
-                )
-                
-            end
-        catch 
-            nothing
-        end
+        # # Main obj elitism
+        # if (state.n_main_obj_elitism != 0)
+        #     union!(selected, sortperm(
+        #         [isnan(v[1]) || constraint_violation[i] != 0. ? -Inf : v[1] for (i,v) in enumerate(pool_perf)],rev=true
+        #         )[1:state.n_main_obj_elitism]
+        #     )
+        # end
         
         # Determine non-dominated rank that complitely fits in pop_size
         ind = 0
         F = [Set{FitnessEvaluation{ eltype(first(pool_perf))}}() for _ in 1:length(fronts)]
         for (i,fi) in enumerate(fronts)
-            ufit = unique_dict(pool_perf[fi])
+            ufit = unique_dict(pool_perf[fi],fi)
             dist = crowding_distance(collect(keys(ufit)))
-            union!(F[i],[FitnessEvaluation(k,i,dist[j],Set(fi[v])) for (j,(k,v)) in  enumerate(ufit)])
+            union!(F[i],[FitnessEvaluation(k,i,dist[j],Set(v)) for (j,(k,v)) in  enumerate(ufit)])
             
             if (length(selected) + length(fi)) > state.pop_size
                 ind = i
