@@ -31,7 +31,7 @@ function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{
 end
 
 function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector; sigdigits=5)
-    function fitness(state::OptimParameters,m::AbstractModel)
+    function fitness(state::AbstractOptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
         ssr = round.(- residuals' * (weigths .* residuals),sigdigits=sigdigits)
         if state.helper == :more
@@ -51,7 +51,7 @@ function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVect
 end
 
 function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector; sigdigits=5)
-    function fitness(state::OptimParameters,m::AbstractModel)
+    function fitness(state::AbstractOptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
         ssr = round.(- residuals' * residuals; sigdigits=sigdigits)
         if state.helper == :more
@@ -93,18 +93,19 @@ function identity_scheduler(
     return pop,p
 end
 
-function evolve(pop::AbstractVector{T}, fitness_function::Function,state::AbstractOptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, info_every=50)::Tuple{Vector{T},Int} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
+function evolve(pop::AbstractVector{T}, fitness_function::Function,parameters::OptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, info_every=50)::Tuple{Vector{T},Int} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
-    @assert length(pop) == state.pop_size "Inconsistancy between the legth of the population and the population size in the state"
-    @assert rem(state.pop_size,2) == 0 "Population size must be divisible by 2"
+    @assert length(pop) == parameters.pop_size "Inconsistancy between the legth of the population and the population size in the state"
+    @assert rem(parameters.pop_size,2) == 0 "Population size must be divisible by 2"
     start_time = now()
     gen = 0
     # no_change_counter = 0
     # previous_convergence_metric = Inf
 
-    if !isnothing(info_every) @info "Starting evolution with state $state" end
-    η = 2. .^(2:10)
-    state = setproperties(state,(ηm=2.,ηc=2.))
+    if !isnothing(info_every) @info "Starting evolution with parameters $parameters" end
+    
+    η = 2. .^(2:10) # Similar to simulated annealing
+    state = _OptimParameters(parameters.pop_size,2.,parameters.p_change_length,2.,parameters.pc,parameters.window,parameters.helper)
     # Initialization of the pop candidate
     pop_candidate = deepcopy(pop)
     mutate!(state,pop_candidate)

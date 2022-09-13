@@ -34,7 +34,7 @@ struct MutationParameters{T<:Number} <: AbstractOptimParameters
     p_change_length::T
 end
 
-struct OptimParameters{T<:Number} <: AbstractOptimParameters
+struct _OptimParameters{T<:Number} <: AbstractOptimParameters
     pop_size::Integer
     ηm::T
     p_change_length::T
@@ -42,7 +42,16 @@ struct OptimParameters{T<:Number} <: AbstractOptimParameters
     pc::T
     window::Union{Nothing,Integer}
     helper::Symbol
-    n_main_obj_elitism::Integer
+    #n_main_obj_elitism::Integer
+end
+
+struct OptimParameters{T<:Number} <: AbstractOptimParameters
+    pop_size::Integer
+    p_change_length::T
+    pc::T
+    window::Union{Nothing,Integer}
+    helper::Symbol
+    #n_main_obj_elitism::Integer
 end
 
 
