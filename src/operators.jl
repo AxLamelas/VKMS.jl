@@ -12,8 +12,12 @@ function polynomial_mutation(s::Param; p::P=0.5, η::E = 2) where {E <: Real, P 
 end
 
 # TODO: mutation and crossover operators must act in knots grouped by bounds, would allow to have knots "fixed inside intervals"
+# Solution in the mean time is to use different VLGroup for each range
 function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr::T = 0.5) where {T <: Real}
-    new::typeof(elem) = modify(v -> isfixed(v) ? v : polynomial_mutation(v,η=state.ηm,p=1/length(elem)), elem, Param)
+    params = flatten(elem,Param)
+    pm = 1/count(x -> !isfixed(x),params)
+    new::typeof(elem) =  reconstruct(elem,map(v -> isfixed(v) ? v : polynomial_mutation(v,η=state.ηm,p=pm),params),Param)
+    
 
     for g in flatten(elem,VLGroup)
         if rand() < pr
