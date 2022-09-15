@@ -20,11 +20,16 @@ end
 
     fitness = fitness_factory(functional,x,y)
 
-    pop = random_population(10,(minimum(x),maximum(x)),(-1.5,1.5),(-1.,1.),(-1.,1.),state.pop_size)
+    n_knots=10
+    xbounds = vcat((minimum(x),minimum(x)),fill((minimum(x),maximum(x)),n_knots-2),(maximum(x),maximum(x)))
+    ybounds = fill((-1.5,1.5),n_knots)
+    pop = random_population(xbounds,ybounds,(-1.,1.),(-1.,1.),state.pop_size)
+    @test count(!=(2), [length(filter(v -> v.x.lb == v.x.ub, p.knots.metavariables)) for p in pop]) == 0
     @test all([all(p .== (10,)) for p in get_n_metavariables.(pop)])
 
     final_pop, gen = evolve(pop, fitness, state, max_gen = 2000, info_every=10)
     
     @test typeof(pop) == typeof(final_pop)
     @test length(pop) == length(final_pop) == state.pop_size
+    @test count(!=(2), [length(filter(v -> v.x.lb == v.x.ub, p.knots.metavariables)) for p in final_pop]) == 0
 end
