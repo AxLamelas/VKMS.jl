@@ -26,9 +26,7 @@ function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr:
             # Only remove if there will remain at least three non-fixed nodes, because, otherwise the metavariable recombination cannot change size
             if (n_remove != 0) && (length(removable) > (n_remove + 3))
                 @debug "Removing $n_remove random knot(s)"
-                for _ in 1:n_remove
-                    new = deleteat(new,g.id,rand(removable)) 
-                end
+                new = deleteat(new,g.id,StatsBase.sample(removable,n_remove,replace=false))
             end
         else
 

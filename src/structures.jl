@@ -133,13 +133,15 @@ Base.length(x::AbstractModel) = length(flatten(x)) # Generic fallback, ovewrite 
 push(g::VLGroup,meta::AbstractMetaVariable) = VLGroup(g.id,(g.metavariables...,meta))
 delete(g::VLGroup,meta::AbstractMetaVariable) = VLGroup(g.id,Tuple([m for m in g.metavariables if m != meta ]))
 deleteat(g::VLGroup,ind::Integer) = VLGroup(g.id,Tuple([m for (i,m) in enumerate(g.metavariables) if i != ind ]))
+deleteat(g::VLGroup,inds::AbstractVector{Int}) = VLGroup(g.id,Tuple([m for (i,m) in enumerate(g.metavariables) if !(i in inds)]))
 
 
 push(m::AbstractModel,id::UUID, meta::AbstractMetaVariable) = modify(g -> g.id == id ? push(g,meta) : g, m,VLGroup)
 delete(m::AbstractModel,id::UUID, meta::AbstractMetaVariable) = modify(g -> g.id == id ? delete(g,meta) : g, m,VLGroup)
 deleteat(m::AbstractModel,id::UUID, ind::Integer) = modify(g -> g.id == id ? deleteat(g,ind) : g, m,VLGroup)
+deleteat(m::AbstractModel,id::UUID, inds::AbstractVector{Int}) = modify(g -> g.id == id ? deleteat(g,inds) : g, m,VLGroup)
 
-isfixed(p::Param) = p.lb == p.ub
+isfixed(p::Param) = p.lb ≈ p.ub
 get_n_metavariables(m::AbstractModel) = (length(flatten(m,AbstractMetaVariable)),)
 
 struct KnotModel{T} <: AbstractModel
