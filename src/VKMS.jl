@@ -2,7 +2,7 @@ module VKMS
 
 export evolve, VLGroup, AbstractMetaVariable, Point,randomPoint, similar_population,
 AbstractOptimParameters, OptimParameters, Param, AbstractModel, fitness_factory, Model,
-groupparams, best_by_size, KnotModel, random_population, model_function_factory, get_n_metavariables
+groupparams, best_by_size, KnotModel, random_population, model_function_factory, get_n_metavariables, first_front
 
 using Dates
 using StatsBase
@@ -91,6 +91,13 @@ function identity_scheduler(
     
     @debug("Identity scheduler")
     return pop,p
+end
+
+function first_front(state::OptimParameters, pop::AbstractVector{T},fitness_function) where {T <: AbstractModel}
+    pop_perf = evaluate(state,pop,fitness_function)
+    constraint_violation  = constraints.(pop)
+    fronts = fast_non_dominated_sort(pop_perf,constraint_violation)
+    return unique_dict(pop_perf[fronts[1]],fronts[1])
 end
 
 function evolve(pop::AbstractVector{T}, fitness_function::Function,parameters::OptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, info_every=50)::Tuple{Vector{T},Int} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
