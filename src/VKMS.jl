@@ -34,6 +34,7 @@ function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVect
     function fitness(state::AbstractOptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
         ssr = round.(- residuals' * (weigths .* residuals),sigdigits=sigdigits)
+        ssr = isnan(ssr) ? -Inf : ssr
         if state.helper == :more
             [ssr , sum(get_n_metavariables(m))]
         elseif state.helper == :less
@@ -54,6 +55,7 @@ function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVect
     function fitness(state::AbstractOptimParameters,m::AbstractModel)
         residuals = y .- functional(x,m)
         ssr = round.(- residuals' * residuals; sigdigits=sigdigits)
+        ssr = isnan(ssr) ? -Inf : ssr
         if state.helper == :more
             [ssr , sum(get_n_metavariables(m))]
         elseif state.helper == :less
