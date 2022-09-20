@@ -113,15 +113,15 @@ Base.length(::Point) = 2
 number_type(::Point{T}) where {T} = T
 number_type(::Type{Point{T}}) where {T} = T
 
-struct VLGroup{N,W<: AbstractMetaVariable}
+struct VLGroup{W<: AbstractMetaVariable}
     id::UUID 
-    metavariables::NTuple{N,W}
+    metavariables::NTuple{N,W} where N
 end
 
 Base.iterate(m::VLGroup,state=1) = iterate(m.metavariables,state)
 @inline Base.length(x::VLGroup) = length(x.metavariables)
-Base.getindex(x::VLGroup{N,W},elems...) where {N,W} = getindex(x.metavariables,elems...)
-Base.convert(::Type{VLGroup{N,T}},x::VLGroup{N,W}) where {N,T,W} = VLGroup(x.id,convert.(T,x.metavariables)) 
+Base.getindex(x::VLGroup{W},elems...) where {W} = getindex(x.metavariables,elems...)
+Base.convert(::Type{VLGroup{T}},x::VLGroup{W}) where {T,W} = VLGroup(x.id,convert.(T,x.metavariables)) 
 
 
 VLGroup(meta_constructor::Union{Function,Type{T}},n::Integer,args...) where T <: AbstractMetaVariable = VLGroup(uuid(),Tuple([meta_constructor([length(a) == n ? a[i] : a for a in args]...) for i in 1:n]))
@@ -147,7 +147,7 @@ get_n_metavariables(m::AbstractModel) = (length(flatten(m,AbstractMetaVariable))
 struct KnotModel{T} <: AbstractModel
     m::Param{T}
     b::Param{T}
-    knots::VLGroup{N,Point{T}} where N
+    knots::VLGroup{Point{T}}
 end
 
 Base.length(x::KnotModel) = nfields(x)-1+length(x.knots)

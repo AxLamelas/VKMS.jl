@@ -269,12 +269,12 @@ function uniform_crossover(p1::Param{T},p2::Param{T};p::P=0.5) where {T,P <: Rea
 end
 
 
-function crossover_elements(state, p1::T,p2::T) where {T <: AbstractModel}
+function crossover_elements(state::AbstractOptimParameters, p1::T,p2::T) where {T <: AbstractModel}
     # Crossover fixed length fields
     fixed_p1 = flatten(p1,Param,VLGroup)
     fixed_p2 = flatten(p2,Param,VLGroup)
 
-    fixed_v1,fixed_v2 = zip(map(v -> begin
+    fixed_v1::typeof(fixed_p1),fixed_v2::typeof(fixed_p2) = zip(map(v -> begin
             if isfixed(v[1]) || isfixed(v[2]) || !(typeof(v[1].val) <: AbstractFloat && typeof(v[2].val) <: AbstractFloat)
                 return uniform_crossover(v[1],v[2],p=state.pc)
             else
@@ -284,13 +284,13 @@ function crossover_elements(state, p1::T,p2::T) where {T <: AbstractModel}
     zip(fixed_p1,fixed_p2))
     ...)
 
-    fixed_c1 = reconstruct(p1,fixed_v1,Param,VLGroup)
-    fixed_c2 = reconstruct(p2,fixed_v2,Param,VLGroup)
+    fixed_c1::T = reconstruct(p1,fixed_v1,Param,VLGroup)
+    fixed_c2::T = reconstruct(p2,fixed_v2,Param,VLGroup)
 
     vl_p1 = flatten(fixed_c1, VLGroup)
     vl_p2 = flatten(fixed_c2, VLGroup)
 
-    vl_v1,vl_v2 = zip(map(g -> begin
+    vl_v1::typeof(vl_p1),vl_v2::typeof(vl_p2) = zip(map(g -> begin
             m1 = flatten(g[1],AbstractMetaVariable)
             m2 = flatten(g[2],AbstractMetaVariable)
             
