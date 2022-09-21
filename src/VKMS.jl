@@ -145,7 +145,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,parameters::O
                 break
             end
             v = popfirst!(η)
-            @info "Increasing η to $v"
+            if !isnothing(info_every) @info "Increasing η to $v" end
             state = setproperties(state,(ηm=v,ηc=v))
             # Delete from first front so that most elements of other fronts are included (reintroduces diversity)
             # Keep one or more copies of the unique elements of the first front
