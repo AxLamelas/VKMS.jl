@@ -222,8 +222,8 @@ function random_population(
         end for _ in 1:total
     ]
     m = Vector{Number}(undef,total)
-    @floop for i in 1:total
-        m[i] = metric(pop[i])
+    @floop WorkStealingEx() for i in 1:total
+        @inbounds m[i] = metric(pop[i])
     end
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]
@@ -257,8 +257,8 @@ function random_population(
         end for _ in 1:total
     ]
     m = Vector{Number}(undef,total)
-    @floop for i in 1:total
-        m[i] = metric(pop[i])
+    @floop WorkStealingEx() for i in 1:total
+        @inbounds m[i] = metric(pop[i])
     end
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]

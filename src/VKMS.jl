@@ -8,6 +8,7 @@ using Dates
 using StatsBase
 using Statistics
 using FLoops
+using FoldsThreads
 using ConstructionBase
 
 
@@ -76,8 +77,8 @@ end
 function evaluate(state, pop, fitness_function)
     pop_size = length(pop)
     perf = Vector{Vector{Float64}}(undef,pop_size)
-    @floop for i in 1:pop_size
-        perf[i] = fitness_function(state,pop[i])
+    @floop WorkStealingEx() for i in 1:pop_size
+        @inbounds perf[i] = fitness_function(state,pop[i])
     end
     return perf
 end
