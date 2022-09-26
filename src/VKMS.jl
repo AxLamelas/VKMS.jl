@@ -211,7 +211,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,parameters::O
 
         if !isnothing(info_every) && mod(gen-1,info_every) == 0
             @info begin
-                "\nGeneration $(gen) - $(hmss(t)) \nFirst front:\n" * join(sort([v.val for v in F[1]],rev=true),"\n")
+                "\nGeneration $(gen) - η = $(state.ηm) - $(hmss(t)) \nFirst front ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size)):\n" * join(sort([v.val => length(v.elems) for v in F[1]],rev=true),"\n")
             end
         end
 
