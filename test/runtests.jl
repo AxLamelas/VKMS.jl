@@ -32,4 +32,12 @@ end
     @test typeof(pop) == typeof(final_pop)
     @test length(pop) == length(final_pop) == state.pop_size
     @test count(!=(2), [length(filter(v -> v.x.lb == v.x.ub, p.knots.metavariables)) for p in final_pop]) == 0
+
+    fit = [begin
+        residual = target_function.(x) .- model_function_factory(p).(x)
+        residual' * residual
+    end for p in final_pop]
+
+    println(best_by_size(final_pop,fit,Val(true)))
+    println(best_by_size(final_pop,fit))
 end

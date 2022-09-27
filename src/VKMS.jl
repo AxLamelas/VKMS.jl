@@ -25,10 +25,16 @@ function hmss(dt)
     string(Int(h),":",Int(m),":",s)
 end
 
-function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{<:Number})
-    sizes = get_n_metavariables.(pop)
+function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{<:Number},::Val{true})
+    sizes = [sum(get_n_metavariables(p)) for p in pop]
     u = sort(unique(sizes))
-    return Dict([(v,pop[findmax([ s == v ? p : -Inf for (s,p) in collect(zip(sizes,perf)) ])[2]]) for v in u])
+    return Dict([(v,pop[argmax([ s == v ? p : -Inf for (s,p) in zip(sizes,perf)])]) for v in u])
+end
+
+function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{<:Number})
+    sizes = [sum(get_n_metavariables(p)) for p in pop]
+    u = sort(unique(sizes))
+    return Dict([(v,argmax([ s == v ? p : -Inf for (s,p) in zip(sizes,perf)])) for v in u])
 end
 
 function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector; sigdigits=5)
