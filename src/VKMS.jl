@@ -1,8 +1,10 @@
 module VKMS
 
 export evolve, VLGroup, AbstractMetaVariable, Point,randomPoint, similar_population,
-AbstractOptimParameters, OptimParameters, Param, AbstractModel, fitness_factory, Model,
-groupparams, best_by_size, KnotModel, random_population, model_function_factory, get_n_metavariables, first_front
+AbstractOptimParameters, OptimParameters, Param, AbstractModel, best_by_size, KnotModel, random_population, model_function_factory, get_n_metavariables, first_front
+
+export LessFitness, MoreFitness, BothFitness, NoneFitness
+
 
 using Dates
 using StatsBase
@@ -10,6 +12,7 @@ using Statistics
 using FLoops
 using FoldsThreads
 using ConstructionBase
+using ProgressMeter
 
 
 include("structures.jl")
@@ -37,70 +40,101 @@ function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{
     return Dict([(v,argmax([ s == v ? p : -Inf for (s,p) in zip(sizes,perf)])) for v in u])
 end
 
-function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector,weigths::AbstractVector; sigdigits=5)
-    function fitness(state::AbstractOptimParameters,m::AbstractModel)
-        residuals = y .- functional(x,m)
-        ssr = round.(- residuals' * (weigths .* residuals),sigdigits=sigdigits)
-        ssr = isnan(ssr) ? -Inf : ssr
-        if state.helper == :more
-            [ssr , sum(get_n_metavariables(m))]
-        elseif state.helper == :less
-            [ssr , - sum(get_n_metavariables(m))]
-        elseif state.helper == :none
-            [ssr]
-        elseif state.helper == :both
-            v = sum(get_n_metavariables(m))
-            [ssr , - v, v]
-        else
-            throw(error("Unexpected helper: $(state.helper)"))
-        end
-    end
-    return fitness
+# Must define getindex
+abstract type AbstractWorkspace end
+
+Base.getindex(ws:: AbstractWorkspace, i) = throw(error("Concrete $(typeof(ws)) subtype of `AbstractWorkspace` must implement getindex to get the result of the functional"))
+
+abstract type AbstractFitness end
+
+struct LessFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
+    functional::F
+    ws::C
+    y::T
+    weights::Vector{Float64}
+    sigdigits::Int
 end
 
-function fitness_factory(functional::Function, x::AbstractVector,y::AbstractVector; sigdigits=5)
-    function fitness(state::AbstractOptimParameters,m::AbstractModel)
-        residuals = y .- functional(x,m)
-        ssr = round.(- residuals' * residuals; sigdigits=sigdigits)
-        ssr = isnan(ssr) ? -Inf : ssr
-        if state.helper == :more
-            [ssr , sum(get_n_metavariables(m))]
-        elseif state.helper == :less
-            [ssr , - sum(get_n_metavariables(m))]
-        elseif state.helper == :none
-            [ssr]
-        elseif state.helper == :both
-            v = sum(get_n_metavariables(m))
-            [ssr , - v, v]
-        else
-            throw(error("Unexpected helper: $(state.helper)"))
-        end
-    end
-    return fitness
+function (f::LessFitness)(_::AbstractOptimParameters,m::AbstractModel)
+    f.functional(f.ws,m)
+    nssr = round(sum(-f.weights[i] * (f.y[i] - f.ws[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+    return [isnan(nssr) ? -Inf : nssr,- sum(get_n_metavariables(m))]
 end
 
+struct MoreFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
+    functional::F
+    ws::C
+    y::T
+    weights::Vector{Float64}
+    sigdigits::Int
+end
 
-function evaluate(state, pop, fitness_function)
-    pop_size = length(pop)
-    perf = Vector{Vector{Float64}}(undef,pop_size)
-    @floop WorkStealingEx() for i in 1:pop_size
+function (f::MoreFitness)(_::AbstractOptimParameters,m::AbstractModel)
+    f.functional(f.ws,m)
+    nssr = round(sum(-f.weights[i] * (f.y[i] - f.ws[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+    return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m))]
+end
+
+struct NoneFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
+    functional::F
+    ws::C
+    y::T
+    weights::Vector{Float64}
+    sigdigits::Int
+end
+
+function (f::NoneFitness)(_::AbstractOptimParameters,m::AbstractModel)
+    f.functional(f.ws,m)
+    nssr = round(sum(-f.weights[i] * (f.y[i] - f.ws[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+    return [isnan(nssr) ? -Inf : nssr]
+end
+    
+struct BothFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
+    functional::F
+    ws::C
+    y::T
+    weights::Vector{Float64}
+    sigdigits::Int
+end
+
+function (f::BothFitness)(_::AbstractOptimParameters,m::AbstractModel)
+    f.functional(f.ws,m)
+    nssr = round(sum(-f.weights[i] * (f.y[i] - f.ws[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+    return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m)), -sum(get_n_metavariables(m))]
+end
+
+function evaluate!(perf, state, pop, thread_fitness::AbstractVector{<:AbstractFitness})
+    @floop WorkStealingEx() for i in 1:length(pop)
+        @inbounds perf[i] = thread_fitness[Threads.threadid()](state,pop[i])
+    end
+    return nothing
+end
+    
+function evaluate!(perf,state, pop, fitness_function::AbstractFitness)
+    for i in 1:length(pop)
         @inbounds perf[i] = fitness_function(state,pop[i])
     end
+    return nothing
+end
+
+function evaluate(state,pop,fitness_function) 
+    perf = Vector{Vector{Float64}}(undef,length(pop))
+    evaluate!(perf,state,pop,fitness_function)
     return perf
 end
 
 
-function identity_scheduler(
-    gen::Integer,
-    pop::AbstractVector,
-    perf::AbstractVector,
-    constraint_violation::AbstractVector,
-    rank::AbstractVector,
-    p::AbstractOptimParameters)
-    
-    @debug("Identity scheduler")
-    return pop,p
-end
+# function identity_scheduler(
+#     gen::Integer,
+#     pop::AbstractVector,
+#     perf::AbstractVector,
+#     constraint_violation::AbstractVector,
+#     rank::AbstractVector,
+#     p::AbstractOptimParameters)
+#     
+#     @debug("Identity scheduler")
+#     return pop,p
+# end
 
 function first_front(state::OptimParameters, pop::AbstractVector{T},fitness_function) where {T <: AbstractModel}
     pop_perf = evaluate(state,pop,fitness_function)
@@ -109,40 +143,55 @@ function first_front(state::OptimParameters, pop::AbstractVector{T},fitness_func
     return unique_dict(pop_perf[fronts[1]],fronts[1])
 end
 
-function evolve(pop::AbstractVector{T}, fitness_function::Function,parameters::OptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, info_every=50)::Tuple{Vector{T},Int} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
+function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness,parameters::OptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, progress=true)::Tuple{Vector{T},Int} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
     @assert length(pop) == parameters.pop_size "Inconsistancy between the legth of the population and the population size in the state"
     @assert rem(parameters.pop_size,2) == 0 "Population size must be divisible by 2"
-    start_time = now()
-    gen = 0
-    # no_change_counter = 0
-    # previous_convergence_metric = Inf
 
-    if !isnothing(info_every) @info "Starting evolution with parameters $parameters" end
-    
     η = 2. .^(2:10) # Similar to simulated annealing
     state = _OptimParameters(parameters.pop_size,2.,parameters.p_change_length,2.,parameters.pc,parameters.window,parameters.helper)
+    
+    @info "Starting evolution with parameters $parameters"
+    prog = if isnothing(max_gen) 
+        ProgressUnknown(dt=1e-9, desc="Evolving: ", showspeed=true,enabled=progress)
+    else
+        Progress(max_gen,dt=1e-9, desc="Evolving: ", showspeed=true, enabled=progress)
+    end
+
+    generate_showvalues(state,F) = () -> [
+            (:n,state.ηm),
+            (Symbol("First front"),"$(join(sort([v.val => length(v.elems) for v in F[1]],rev=true),", ")) ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size))")
+        ]
+
+    thread_fitness = [deepcopy(fitness_function) for _ in 1:Threads.nthreads()]
+   
     # Initialization of the pop candidate
     pop_candidate = deepcopy(pop)
     mutate!(state,pop_candidate)
+
+    pool_perf = Vector{Vector{Float64}}(undef,2*length(pop))
+   
+    gen = 1
+    start_time = now()
     while true
         if (!isnothing(max_gen)) && (gen >= max_gen)
-            if !isnothing(info_every) @info "Finished: Reached maximum generation $(max_gen)" end
+            ProgressMeter.finish!(prog)
+            @info "Finished: Reached maximum generation $(max_gen)"
             break
         end
         
         t = now() - start_time
         if (!isnothing(max_time)) && (t >= max_time)
-            if !isnothing(info_every) @info "Finished: Reached maximum execution time $max_time" end
+            ProgressMeter.finish!(prog)
+            @info "Finished: Reached maximum execution time $max_time"
             break
         end
 
-        gen +=  1
 
         @debug "Current state: $state"
         
         pool = vcat(pop,pop_candidate)
-        pool_perf = evaluate(state,pool,fitness_function)
+        evaluate!(pool_perf,state,pool,thread_fitness)
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
 
@@ -152,7 +201,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,parameters::O
                 break
             end
             v = popfirst!(η)
-            if !isnothing(info_every) @info "Increasing η to $v" end
+            @info "Increasing η to $v"
             state = setproperties(state,(ηm=v,ηc=v))
             # Delete from first front so that most elements of other fronts are included (reintroduces diversity)
             # Keep one or more copies of the unique elements of the first front
@@ -214,20 +263,9 @@ function evolve(pop::AbstractVector{T}, fitness_function::Function,parameters::O
         crossover!(state,pop_candidate,pool[mating_pool])
         mutate!(state,pop_candidate)
 
-
-        if !isnothing(info_every) && mod(gen-1,info_every) == 0
-            @info begin
-                "\nGeneration $(gen) - η = $(state.ηm) - $(hmss(t)) \nFirst front ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size)):\n" * join(sort([v.val => length(v.elems) for v in F[1]],rev=true),"\n")
-            end
-        end
-
-
-        #pop, state = scheduler(gen,pop,pool_perf[indexes],constraint_violation[indexes],rank[indexes],state)
-
-        # # Emigration
-        # n_emigrants = 3
-        # emigrants = [mutate_element(MutationParameters(1.,0.9,0.3),pop[1]) for _ in 1:n_emigrants]
-        # pop[end-n_emigrants+1:end] = emigrants
+        gen +=  1
+        ProgressMeter.next!(prog,showvalues = generate_showvalues(state,F))
+        
     end
 
     return pop, gen
