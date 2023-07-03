@@ -126,8 +126,10 @@ Base.convert(::Type{VLGroup{T}},x::VLGroup{W}) where {T,W} = VLGroup(x.id,conver
 
 VLGroup(meta_constructor::Union{Function,Type{T}},n::Integer,args...) where T <: AbstractMetaVariable = VLGroup(uuid(),Tuple([meta_constructor([length(a) == n ? a[i] : a for a in args]...) for i in 1:n]))
 
-abstract type AbstractModel end
+abstract type AbstractModel{T} end
 
+
+Base.eltype(_::AbstractModel{T}) where {T} = T
 Base.length(x::AbstractModel) = length(flatten(x)) # Generic fallback, ovewrite for better performance
 
 push(g::VLGroup,meta::AbstractMetaVariable) = VLGroup(g.id,(g.metavariables...,meta))
@@ -141,10 +143,10 @@ delete(m::AbstractModel,id::UUID, meta::AbstractMetaVariable) = modify(g -> g.id
 deleteat(m::AbstractModel,id::UUID, ind::Integer) = modify(g -> g.id == id ? deleteat(g,ind) : g, m,VLGroup)
 deleteat(m::AbstractModel,id::UUID, inds::AbstractVector{Int}) = modify(g -> g.id == id ? deleteat(g,inds) : g, m,VLGroup)
 
-isfixed(p::Param) = p.lb ≈ p.ub
+isfixed(p::Param) = (p.lb ≈ p.ub)
 get_n_metavariables(m::AbstractModel) = (length(flatten(m,AbstractMetaVariable)),)
 
-struct KnotModel{T} <: AbstractModel
+struct KnotModel{T} <: AbstractModel{T}
     m::Param{T}
     b::Param{T}
     knots::VLGroup{Point{T}}
@@ -221,10 +223,8 @@ function random_population(
                 VLGroup(Point,n_knots,knot_x,xbounds,knot_y,ybounds))
         end for _ in 1:total
     ]
-    m = Vector{Number}(undef,total)
-    @floop WorkStealingEx() for i in 1:total
-        @inbounds m[i] = metric(pop[i])
-    end
+
+    m = ThreadsX.map(metric,pop)
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]
     
@@ -256,10 +256,8 @@ function random_population(
                 VLGroup(Point,n_knots,knot_x,bounds_x,knot_y,bounds_y))
         end for _ in 1:total
     ]
-    m = Vector{Number}(undef,total)
-    @floop WorkStealingEx() for i in 1:total
-        @inbounds m[i] = metric(pop[i])
-    end
+
+    m = ThreadsX.map(metric,pop)
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]
     
