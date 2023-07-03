@@ -55,11 +55,9 @@ end
 
 
 function similar_population(initial_s::AbstractModel, pop_size::Int; η::E = 500., pl::P = 0.2) where {E <: Real, P <: Real}
-    pop = Vector{typeof(initial_s)}(undef,pop_size)
-    @floop WorkStealingEx() for i in 1:pop_size
-        @inbounds pop[i] = mutate_element(MutationParameters(promote(η,pl)...), initial_s)
+    return  ThreadsX.map(1:pop_size) do _
+        mutate_element(MutationParameters(promote(η,pl)...), initial_s)
     end
-    return pop
 end
 
 function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Function; gen_multiplier::Int = 10, η::E = 500.,pl::P = 0.2) where {E <: Real, P <: Real}
@@ -67,24 +65,19 @@ function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Fun
     if gen_multiplier == 1 return similar_population(initial_s,pop_size, η = η) end
 
     size = pop_size*gen_multiplier
-    pop = Vector{typeof(initial_s)}(undef,size)
-    @floop WorkStealingEx() for i in 1:(size)
-        @inbounds pop[i] = mutate_element(MutationParameters(promote(η,pl)...), initial_s)
+    pop = ThreadsX.map(1:size) do _
+        mutate_element(MutationParameters(promote(η,pl)...), initial_s)
     end
 
-    m = Vector{Number}(undef,size)
-    @floop WorkStealingEx() for i in 1:size
-        @inbounds m[i] = metric(pop[i])
-    end
-
+    m = ThreadsX.map(metric,pop)
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]
 end
 
 
 function mutate!(state, pop)
-    @floop WorkStealingEx() for i in 1:state.pop_size
-        @inbounds pop[i] = mutate_element(state,pop[i])
+    ThreadsX.map!(pop,pop) do p
+        mutate_element(state,p)
     end
 end
 
@@ -93,7 +86,7 @@ end
 #     pop_size = length(rank)
 
 #     mating_pool = Vector{Int}(undef,pop_size)
-#     @floop for i in 1:pop_size
+#     for i in 1:pop_size
 #         best = rand(1:pop_size)
 #         for _ in 1:number_in_tournament-1
 #             candidate = rand(1:pop_size)

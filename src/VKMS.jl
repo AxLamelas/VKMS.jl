@@ -9,10 +9,9 @@ export LessFitness, MoreFitness, BothFitness, NoneFitness
 using Dates
 using StatsBase
 using Statistics
-using FLoops
-using FoldsThreads
 using ConstructionBase
 using ProgressMeter
+using ThreadsX
 
 
 include("structures.jl")
@@ -98,14 +97,14 @@ struct BothFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
 end
 
 function (f::BothFitness)(_::AbstractOptimParameters,m::AbstractModel)
-    f.functional(f.ws,m)
-    nssr = round(sum(-f.weights[i] * (f.y[i] - f.ws[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+    r = f.functional(f.ws,m)
+    nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
     return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m)), -sum(get_n_metavariables(m))]
 end
-
+ 
 function evaluate!(perf, state, pop, thread_fitness::AbstractVector{<:AbstractFitness})
-    @floop WorkStealingEx() for i in 1:length(pop)
-        @inbounds perf[i] = thread_fitness[Threads.threadid()](state,pop[i])
+    ThreadsX.map!(perf,pop) do p 
+        thread_fitness[Threads.threadid()](state,p)
     end
     return nothing
 end
