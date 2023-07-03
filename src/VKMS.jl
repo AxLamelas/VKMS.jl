@@ -55,8 +55,8 @@ struct LessFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
 end
 
 function (f::LessFitness)(_::AbstractOptimParameters,m::AbstractModel)
-    f.functional(f.ws,m)
-    nssr = round(sum(-f.weights[i] * (f.y[i] - f.ws[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+    r = f.functional(f.ws,m)
+    nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
     return [isnan(nssr) ? -Inf : nssr,- sum(get_n_metavariables(m))]
 end
 
@@ -69,8 +69,8 @@ struct MoreFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
 end
 
 function (f::MoreFitness)(_::AbstractOptimParameters,m::AbstractModel)
-    f.functional(f.ws,m)
-    nssr = round(sum(-f.weights[i] * (f.y[i] - f.ws[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+    r = f.functional(f.ws,m)
+    nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
     return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m))]
 end
 
@@ -83,8 +83,8 @@ struct NoneFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
 end
 
 function (f::NoneFitness)(_::AbstractOptimParameters,m::AbstractModel)
-    f.functional(f.ws,m)
-    nssr = round(sum(-f.weights[i] * (f.y[i] - f.ws[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+    r = f.functional(f.ws,m)
+    nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
     return [isnan(nssr) ? -Inf : nssr]
 end
     
