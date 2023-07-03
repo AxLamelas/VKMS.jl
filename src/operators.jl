@@ -340,15 +340,17 @@ function constraints(
     state::AbstractOptimParameters,
     pop::Vector{T},
     pop_perf::AbstractVector
-    ) where T <: AbstractModel
+    ) where {W,T <: AbstractModel{W}}
     c_violation = constraints.(pop)
     if isnothing(state.window) return c_violation end
 
-    best = findmax([isnan(v[1]) ? -Inf : v[1] for v in pop_perf])[2]
+    best = argmax([isnan(v[1]) ? -Inf : v[1] for v in pop_perf])
     n = get_n_metavariables(pop[best])
     @debug "Number of parmeters of best: $n"
 
-    c_violation += clamp.([sum(abs.(n .- p)) for p in get_n_metavariables.(pop)] .- state.window,0,Inf)
+    for i in eachindex(pop)
+        c_violation[i] += clamp(sum(abs.(n .- get_n_metavariables(pop[i]))) - state.window, 0, Inf)
+    end
     
     return c_violation
 end
