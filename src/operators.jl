@@ -314,10 +314,23 @@ end
 
 # Has to return 0 if no constraint is violated or the ammount of violation if it violest some constraints
 # Element wise constraints
-function constraints(s::AbstractModel)
+function constraints(s::AbstractModel{T}) where {T <: Number}
     #Add up distance bellow lower bound and above upper bound
-    constraint_violation = sum(map(p -> isfixed(p) ? 0. : clamp((p.lb-p.val)/(p.ub-p.lb),0,Inf) + clamp((p.val-p.ub)/(p.ub-p.lb),0,Inf),flatten(s,Param)))
-    
+    constraint_violation = zero(T)
+    for fp in flatten(s,Param)
+        p = fp::Param{T}
+        if isfixed(p)
+            continue
+        end
+        r = p.ub - p.lb
+        if p.val < p.lb
+            constraint_violation += (p.lb - p.val)/r
+        end
+        if p.val > p.ub
+            constraint_violation += (p.val - p.ub)/r
+        end
+    end
+
     return constraint_violation
 end
 
