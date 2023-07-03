@@ -157,16 +157,19 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness,parame
         Progress(max_gen,dt=1e-9, desc="Evolving: ", showspeed=true, enabled=progress)
     end
 
-    generate_showvalues(state,F) = () -> [
+    generate_showvalues(state,F,constraint_violation) = () -> [
             (:n,state.ηm),
-            (Symbol("First front"),"$(join(sort([v.val => length(v.elems) for v in F[1]],rev=true),", ")) ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size))")
+            (Symbol("First front"),"$(join(sort([v.val => (length(v.elems),mean(constraint_violation[i] for i in v.elems)) for v in F[1]],rev=true),", ")) ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size))")
         ]
 
     thread_fitness = [deepcopy(fitness_function) for _ in 1:Threads.nthreads()]
    
     # Initialization of the pop candidate
-    pop_candidate = deepcopy(pop)
+    pool = vcat(pop,pop)
+    pop = view(pool,1:state.pop_size)
+    pop_candidate = view(pool,state.pop_size + 1 : 2state.pop_size)
     mutate!(state,pop_candidate)
+
 
     pool_perf = Vector{Vector{Float64}}(undef,2*length(pop))
    
@@ -189,7 +192,6 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness,parame
 
         @debug "Current state: $state"
         
-        pool = vcat(pop,pop_candidate)
         evaluate!(pool_perf,state,pool,thread_fitness)
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
@@ -230,7 +232,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness,parame
         ind = 0
         F = [Set{FitnessEvaluation{ eltype(first(pool_perf))}}() for _ in 1:length(fronts)]
         for (i,fi) in enumerate(fronts)
-            ufit = unique_dict(pool_perf[fi],fi)
+            ufit = unique_dict(view(pool_perf,fi),fi)
             dist = crowding_distance(collect(keys(ufit)))
             union!(F[i],[FitnessEvaluation(k,i,dist[j],Set(v)) for (j,(k,v)) in  enumerate(ufit)])
             
@@ -255,15 +257,16 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness,parame
             union!(selected,S)
         end
         
-        indexes = collect(selected)
-        pop = pool[indexes]
+        for (i,j) in enumerate(selected)
+            pop[i] = pool[j]
+        end
 
-        mating_pool = selection(state.pop_size,union(F[1:ind]...))
+        mating_pool = selection(state.pop_size,union((F[i] for i in 1:ind)...))
         crossover!(state,pop_candidate,pool[mating_pool])
         mutate!(state,pop_candidate)
 
         gen +=  1
-        ProgressMeter.next!(prog,showvalues = generate_showvalues(state,F))
+        ProgressMeter.next!(prog,showvalues = generate_showvalues(state,F,constraint_violation))
         
     end
 
