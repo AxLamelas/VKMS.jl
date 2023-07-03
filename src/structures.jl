@@ -174,9 +174,11 @@ end
 function model_function_factory(m::KnotModel)
     xs = map(v -> v.x.val, m.knots)
     ys = map(v -> v.y.val, m.knots)
-    correct_same_x!(xs)
     perm = sortperm(xs)
-    return extrapolate(interpolate(xs[perm],ys[perm],SteffenMonotonicInterpolation()), Flat())
+    xs = xs[perm]
+    ys = ys[perm]
+    Interpolations.deduplicate_knots!(xs; move_knots = true)
+    return extrapolate(interpolate(xs,ys,SteffenMonotonicInterpolation()), Flat())
 end
 
 
