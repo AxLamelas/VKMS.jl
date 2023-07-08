@@ -3,7 +3,7 @@ module VKMS
 export evolve, VLGroup, AbstractMetaVariable, Point,randomPoint, similar_population,
 AbstractOptimParameters, OptimParameters, Param, AbstractModel, best_by_size, KnotModel, random_population, model_function_factory, get_n_metavariables, first_front
 
-export LessFitness, MoreFitness, BothFitness, NoneFitness
+export LessFitness, MoreFitness,  NoneFitness # BothFitness,
 
 
 using Dates
@@ -12,6 +12,7 @@ using Statistics
 using ConstructionBase
 using ProgressMeter
 using ThreadsX
+using StaticArrays
 
 
 include("structures.jl")
@@ -41,63 +42,74 @@ end
 
 abstract type AbstractWorkspace end
 
-abstract type AbstractFitness end
+abstract type AbstractFitness{N,T} end
 
-struct LessFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
+struct LessFitness{N,T,F,C<:AbstractWorkspace} <: AbstractFitness{N,T}
     functional::F
     ws::C
-    y::T
+    y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
+    function LessFitness{N}(functional::F, ws::C, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,C,T}
+        new{N,T,F,C}(functional,ws,y,weights,sigdigits)
+    end
 end
+
 
 function (f::LessFitness)(_::AbstractOptimParameters,m::AbstractModel)
     r = f.functional(f.ws,m)
     nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
-    return [isnan(nssr) ? -Inf : nssr,- sum(get_n_metavariables(m))]
+    return SVector((isnan(nssr) ? -Inf : nssr), (-convert(Float64,v) for v in get_n_metavariables(m))...)
 end
 
-struct MoreFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
+struct MoreFitness{N,T,F,C<:AbstractWorkspace} <: AbstractFitness{N,T}
     functional::F
     ws::C
-    y::T
+    y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
+    function MoreFitness{N}(functional::F, ws::C, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,C,T}
+        new{N,T,F,C}(functional,ws,y,weights,sigdigits)
+    end
 end
 
 function (f::MoreFitness)(_::AbstractOptimParameters,m::AbstractModel)
     r = f.functional(f.ws,m)
     nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
-    return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m))]
+    return SVector((isnan(nssr) ? -Inf : nssr), (convert(Float64,v) for v in get_n_metavariables(m))...)
 end
 
-struct NoneFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
+struct NoneFitness{N,T,F,C<:AbstractWorkspace} <: AbstractFitness{N,T}
     functional::F
     ws::C
-    y::T
+    y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
+    function NoneFitness{N}(functional::F, ws::C, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,C,T}
+        new{N,T,F,C}(functional,ws,y,weights,sigdigits)
+    end
 end
 
 function (f::NoneFitness)(_::AbstractOptimParameters,m::AbstractModel)
     r = f.functional(f.ws,m)
     nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
-    return [isnan(nssr) ? -Inf : nssr]
+    return SVector((isnan(nssr) ? -Inf : nssr),)
 end
-    
-struct BothFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
-    functional::F
-    ws::C
-    y::T
-    weights::Vector{Float64}
-    sigdigits::Int
-end
+   
 
-function (f::BothFitness)(_::AbstractOptimParameters,m::AbstractModel)
-    r = f.functional(f.ws,m)
-    nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
-    return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m)), -sum(get_n_metavariables(m))]
-end
+# struct BothFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
+#     functional::F
+#     ws::C
+#     y::T
+#     weights::Vector{Float64}
+#     sigdigits::Int
+# end
+#
+# function (f::BothFitness)(_::AbstractOptimParameters,m::AbstractModel)
+#     r = f.functional(f.ws,m)
+#     nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
+#     return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m)), -sum(get_n_metavariables(m))]
+# end
  
 function evaluate!(perf, state, pop, thread_fitness::AbstractVector{<:AbstractFitness})
     ThreadsX.map!(perf,pop) do p 
@@ -113,8 +125,8 @@ function evaluate!(perf,state, pop, fitness_function::AbstractFitness)
     return nothing
 end
 
-function evaluate(state,pop,fitness_function) 
-    perf = Vector{Vector{Float64}}(undef,length(pop))
+function evaluate(state,pop,fitness_function::AbstractFitness{N,T})  where {T,N}
+    perf = Vector{SVector{N,T}}(undef,length(pop))
     evaluate!(perf,state,pop,fitness_function)
     return perf
 end
@@ -139,7 +151,7 @@ function first_front(state::OptimParameters, pop::AbstractVector{T},fitness_func
     return unique_dict(pop_perf[fronts[1]],fronts[1])
 end
 
-function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness,parameters::OptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, progress=true)::Tuple{Vector{T},Int} where {T<:AbstractModel} # stopping_tol=nothing, #scheduler=identity_scheduler
+function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},parameters::OptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, progress=true)::Tuple{Vector{T},Int} where {T<:AbstractModel, W, N} # stopping_tol=nothing, #scheduler=identity_scheduler
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol
     @assert length(pop) == parameters.pop_size "Inconsistancy between the legth of the population and the population size in the state"
     @assert rem(parameters.pop_size,2) == 0 "Population size must be divisible by 2"
@@ -168,7 +180,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness,parame
     mutate!(state,pop_candidate)
 
 
-    pool_perf = Vector{Vector{Float64}}(undef,2*length(pop))
+    pool_perf = Vector{SVector{N,W}}(undef,2*length(pop))
    
     gen = 1
     start_time = now()
