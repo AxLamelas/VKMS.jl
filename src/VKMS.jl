@@ -39,10 +39,7 @@ function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{
     return Dict([(v,argmax([ s == v ? p : -Inf for (s,p) in zip(sizes,perf)])) for v in u])
 end
 
-# Must define getindex
 abstract type AbstractWorkspace end
-
-Base.getindex(ws:: AbstractWorkspace, i) = throw(error("Concrete $(typeof(ws)) subtype of `AbstractWorkspace` must implement getindex to get the result of the functional"))
 
 abstract type AbstractFitness end
 
