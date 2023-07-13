@@ -167,11 +167,6 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             (Symbol("First front"),"$(join(sort([v.val => (length(v.elems),mean(constraint_violation[i] for i in v.elems)) for v in F[1]],rev=true),", ")) ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size))")
         ]
 
-    thread_fitness = Channel{typeof(fitness_function)}(Threads.nthreads())
-    for _ in 1:Threads.nthreads()
-        put!(thread_fitness,deepcopy(fitness_function))
-    end
-    
     # Initialization of the pop candidate
     pool = vcat(pop,pop)
     pop = view(pool,1:state.pop_size)
@@ -200,7 +195,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
 
         @debug "Current state: $state"
         
-        evaluate!(pool_perf,state,pool,thread_fitness)
+        evaluate!(pool_perf,state,pool,fitness_function)
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
 
