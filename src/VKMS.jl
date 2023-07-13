@@ -11,7 +11,7 @@ using StatsBase
 using Statistics
 using ConstructionBase
 using ProgressMeter
-using ThreadsX
+using FLoops
 using StaticArrays
 
 
@@ -111,19 +111,15 @@ end
 #     return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m)), -sum(get_n_metavariables(m))]
 # end
  
-function evaluate!(perf, state, pop, thread_fitness::AbstractVector{<:AbstractFitness})
-    ThreadsX.map!(perf,pop) do p 
-        thread_fitness[Threads.threadid()](state,p)
+
+function evaluate!(perf, state, pop,fitness) 
+    @floop for i in eachindex(pop)
+        @init local_fitness = deepcopy(fitness)
+        perf[i] = local_fitness(state,pop[i])
     end
     return nothing
 end
-    
-function evaluate!(perf,state, pop, fitness_function::AbstractFitness)
-    for i in 1:length(pop)
-        @inbounds perf[i] = fitness_function(state,pop[i])
-    end
-    return nothing
-end
+
 
 function evaluate(state,pop,fitness_function::AbstractFitness{N,T})  where {T,N}
     perf = Vector{SVector{N,T}}(undef,length(pop))
@@ -171,8 +167,11 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             (Symbol("First front"),"$(join(sort([v.val => (length(v.elems),mean(constraint_violation[i] for i in v.elems)) for v in F[1]],rev=true),", ")) ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size))")
         ]
 
-    thread_fitness = [deepcopy(fitness_function) for _ in 1:Threads.nthreads()]
-   
+    thread_fitness = Channel{typeof(fitness_function)}(Threads.nthreads())
+    for _ in 1:Threads.nthreads()
+        put!(thread_fitness,deepcopy(fitness_function))
+    end
+    
     # Initialization of the pop candidate
     pool = vcat(pop,pop)
     pop = view(pool,1:state.pop_size)

@@ -226,7 +226,10 @@ function random_population(
         end for _ in 1:total
     ]
 
-    m = ThreadsX.map(metric,pop)
+    m = Vector{Number}(undef,pop_size)
+    @floop for i in 1:pop_size
+        m[i] = metric(pop[i])
+    end
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]
     
@@ -259,7 +262,10 @@ function random_population(
         end for _ in 1:total
     ]
 
-    m = ThreadsX.map(metric,pop)
+    m = Vector{Number}(undef,total)
+    @floop for i in 1:total
+        m[i] = metric(pop[i])
+    end
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]
     

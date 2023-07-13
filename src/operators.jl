@@ -55,9 +55,11 @@ end
 
 
 function similar_population(initial_s::AbstractModel, pop_size::Int; η::E = 500., pl::P = 0.2) where {E <: Real, P <: Real}
-    return  ThreadsX.map(1:pop_size) do _
-        mutate_element(MutationParameters(promote(η,pl)...), initial_s)
+    pop = Vector{typeof(initial_s)}(undef,pop_size)
+    @floop for i in 1:pop_size
+        pop[i] = mutate_element(MutationParameters(promote(η,pl)...), initial_s)
     end
+    return pop
 end
 
 function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Function; gen_multiplier::Int = 10, η::E = 500.,pl::P = 0.2) where {E <: Real, P <: Real}
@@ -65,19 +67,20 @@ function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Fun
     if gen_multiplier == 1 return similar_population(initial_s,pop_size, η = η) end
 
     size = pop_size*gen_multiplier
-    pop = ThreadsX.map(1:size) do _
-        mutate_element(MutationParameters(promote(η,pl)...), initial_s)
+    pop = Vector{typeof(initial_s)}(undef,size)
+    m = Vector{Number}(undef,size)
+    @floop for i in 1:size
+        pop[i] = mutate_element(MutationParameters(promote(η,pl)...), initial_s)
+        m[i] = metric(pop[i])
     end
-
-    m = ThreadsX.map(metric,pop)
 
     return pop[sortperm([isnan(v) ? -Inf : v for v in m],rev=true)[1:pop_size]]
 end
 
 
 function mutate!(state, pop)
-    ThreadsX.map!(pop,pop) do p
-        mutate_element(state,p)
+    @floop for i in eachindex(pop)
+        pop[i] = mutate_element(state,pop[i])
     end
 end
 
