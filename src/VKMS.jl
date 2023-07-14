@@ -169,12 +169,13 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
 
     # Initialization of the pop candidate
     pool = vcat(pop,pop)
-    pop = view(pool,1:state.pop_size)
-    pop_candidate = view(pool,state.pop_size + 1 : 2state.pop_size)
+    pop_candidate = deepcopy(pop)
     mutate!(state,pop_candidate)
 
 
     pool_perf = Vector{SVector{N,W}}(undef,2*length(pop))
+    
+    old_best_fitness = -Inf
    
     gen = 1
     start_time = now()
@@ -198,6 +199,15 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
         evaluate!(pool_perf,state,pool,fitness_function)
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
+
+        f1=Tuple(pool_perf[i][1] for i in fronts[1] if constraint_violation[i] ≈ 0.)
+        best_fitness = isempty(f1) ? old_best_fitness : maximum(f1)
+
+        if best_fitness < old_best_fitness
+            @info "Best fitness decreased from $(old_best_fitness) by $(old_best_fitness-best_fitness)"
+        end
+
+        old_best_fitness = best_fitness
 
         if terminate_on_front_collapse && (length(fronts[1]) >= state.pop_size)
             if isempty(η)
@@ -265,7 +275,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
         end
 
         mating_pool = selection(state.pop_size,union((F[i] for i in 1:ind)...))
-        crossover!(state,pop_candidate,pool[mating_pool])
+        crossover!(state,pop_candidate,pool,mating_pool)
         mutate!(state,pop_candidate)
 
         gen +=  1
