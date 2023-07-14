@@ -209,7 +209,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             state = setproperties(state,(ηm=v,ηc=v))
             # Delete from first front so that most elements of other fronts are included (reintroduces diversity)
             # Keep one or more copies of the unique elements of the first front
-            # More than one copie might be necessary depending on the number of elements in the first front
+            # More than one copy might be necessary depending on the number of elements in the first front
             n_missing = state.pop_size - sum(length.(fronts[2:end])) + 1
             u = unique_dict(pool_perf[fronts[1]],fronts[1])
             to_keep = Int[]
