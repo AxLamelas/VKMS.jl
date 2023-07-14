@@ -33,7 +33,7 @@ function fast_non_dominated_sort(pop_perf,constraint_violation)
         
     i = 1
     while !isempty(fronts[i])
-        Q = []
+        Q = Int[]
         for j in fronts[i]
             for k in Sp[j]
                 np[k] -= 1
