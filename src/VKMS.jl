@@ -20,14 +20,6 @@ include("operators.jl")
 include("nondominated.jl")
 
 
-function hmss(dt)
-    dt = dt.value
-    (h,r) = divrem(dt,60*60*1000)
-    (m,r) = divrem(r, 60*1000)
-    (s,r) = divrem(r, 1000)
-    string(Int(h),":",Int(m),":",s)
-end
-
 function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{<:Number},::Val{true})
     sizes = [sum(get_n_metavariables(p)) for p in pop]
     u = sort(unique(sizes))
@@ -175,12 +167,14 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
    
     # Initialization of the pop candidate
     pool = vcat(pop,pop)
-    pop = view(pool,1:state.pop_size)
-    pop_candidate = view(pool,state.pop_size + 1 : 2state.pop_size)
+    pop_candidate = deepcopy(pop)
     mutate!(state,pop_candidate)
 
 
-    pool_perf = Vector{SVector{N,W}}(undef,2*length(pop))
+    pool_perf = Vector{SVector{N,W}}(undef,2*length(pop)) 
+    selected = Vector{Int}(undef,state.pop_size)
+
+    old_best_fitness = -Inf
    
     gen = 1
     start_time = now()
@@ -205,6 +199,15 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
 
+        f1=Tuple(pool_perf[i][1] for i in fronts[1] if constraint_violation[i] ≈ 0.)
+        best_fitness = isempty(f1) ? old_best_fitness : maximum(f1)
+
+        if best_fitness < old_best_fitness
+            @info "Best fitness decreased from $(old_best_fitness) by $(old_best_fitness-best_fitness)"
+        end
+
+        old_best_fitness = best_fitness
+
         if terminate_on_front_collapse && (length(fronts[1]) >= state.pop_size)
             if isempty(η)
                 @info "Finished all η steps. Terminating..."
@@ -215,7 +218,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             state = setproperties(state,(ηm=v,ηc=v))
             # Delete from first front so that most elements of other fronts are included (reintroduces diversity)
             # Keep one or more copies of the unique elements of the first front
-            # More than one copie might be necessary depending on the number of elements in the first front
+            # More than one copy might be necessary depending on the number of elements in the first front
             n_missing = state.pop_size - sum(length.(fronts[2:end])) + 1
             u = unique_dict(pool_perf[fronts[1]],fronts[1])
             to_keep = Int[]
@@ -228,16 +231,9 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             filter!(x -> x in to_keep,fronts[1])
         end        
 
-        selected = Set{Int}()
-        # # Main obj elitism
-        # if (state.n_main_obj_elitism != 0)
-        #     union!(selected, sortperm(
-        #         [isnan(v[1]) || constraint_violation[i] != 0. ? -Inf : v[1] for (i,v) in enumerate(pool_perf)],rev=true
-        #         )[1:state.n_main_obj_elitism]
-        #     )
-        # end
+        cursor  = 0
         
-        # Determine non-dominated rank that complitely fits in pop_size
+        # Determine non-dominated rank that completely fits in pop_size
         ind = 0
         F = [Set{FitnessEvaluation{ eltype(first(pool_perf))}}() for _ in 1:length(fronts)]
         for (i,fi) in enumerate(fronts)
@@ -245,15 +241,16 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             dist = crowding_distance(collect(keys(ufit)))
             union!(F[i],[FitnessEvaluation(k,i,dist[j],Set(v)) for (j,(k,v)) in  enumerate(ufit)])
             
-            if (length(selected) + length(fi)) > state.pop_size
+            if (cursor + length(fi)) > state.pop_size
                 ind = i
                 break
             end
-            union!(selected,fronts[i])
+            selected[(cursor+1):(cursor+length(fronts[i]))] .= fronts[i]
+            cursor += length(fronts[i])
         end
         
         # Append the remaining base on distance
-        remaining = state.pop_size-length(selected)
+        remaining = state.pop_size-cursor
         if remaining == 0
             ind -= 1
         else
@@ -263,15 +260,15 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             end
             filter!(x -> !isempty(x.elems), F[ind])
 
-            union!(selected,S)
+            selected[(cursor+1):end] .= S
         end
-        
+
         for (i,j) in enumerate(selected)
             pop[i] = pool[j]
         end
 
         mating_pool = selection(state.pop_size,union((F[i] for i in 1:ind)...))
-        crossover!(state,pop_candidate,pool[mating_pool])
+        crossover!(state,pop_candidate,pool,mating_pool)
         mutate!(state,pop_candidate)
 
         gen +=  1

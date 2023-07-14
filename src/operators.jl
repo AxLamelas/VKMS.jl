@@ -304,10 +304,12 @@ function crossover_elements(state::AbstractOptimParameters, p1::T,p2::T) where {
     return c1,c2
 end
 
-function crossover!(state,pop,mating_pool)
+function crossover!(state,pop,pool,mating_pool)
     for i in 1:2:state.pop_size
-        pop[i:i+1] .= crossover_elements(state,StatsBase.sample(mating_pool,2,replace=false)...)
+        a,b = StatsBase.samplepair(mating_pool)
+        pop[i:i+1] .= crossover_elements(state,pool[a],pool[b])
     end
+    return nothing
 end
 
                                         
