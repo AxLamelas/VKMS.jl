@@ -20,14 +20,6 @@ include("operators.jl")
 include("nondominated.jl")
 
 
-function hmss(dt)
-    dt = dt.value
-    (h,r) = divrem(dt,60*60*1000)
-    (m,r) = divrem(r, 60*1000)
-    (s,r) = divrem(r, 1000)
-    string(Int(h),":",Int(m),":",s)
-end
-
 function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{<:Number},::Val{true})
     sizes = [sum(get_n_metavariables(p)) for p in pop]
     u = sort(unique(sizes))
@@ -234,15 +226,8 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
         end        
 
         cursor  = 0
-        # # Main obj elitism
-        # if (state.n_main_obj_elitism != 0)
-        #     union!(selected, sortperm(
-        #         [isnan(v[1]) || constraint_violation[i] != 0. ? -Inf : v[1] for (i,v) in enumerate(pool_perf)],rev=true
-        #         )[1:state.n_main_obj_elitism]
-        #     )
-        # end
         
-        # Determine non-dominated rank that complitely fits in pop_size
+        # Determine non-dominated rank that completely fits in pop_size
         ind = 0
         F = [Set{FitnessEvaluation{ eltype(first(pool_perf))}}() for _ in 1:length(fronts)]
         for (i,fi) in enumerate(fronts)
