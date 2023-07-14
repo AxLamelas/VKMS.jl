@@ -173,8 +173,9 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
     mutate!(state,pop_candidate)
 
 
-    pool_perf = Vector{SVector{N,W}}(undef,2*length(pop))
-    
+    pool_perf = Vector{SVector{N,W}}(undef,2*length(pop)) 
+    selected = Vector{Int}(undef,state.pop_size)
+
     old_best_fitness = -Inf
    
     gen = 1
@@ -232,7 +233,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             filter!(x -> x in to_keep,fronts[1])
         end        
 
-        selected = Set{Int}()
+        cursor  = 0
         # # Main obj elitism
         # if (state.n_main_obj_elitism != 0)
         #     union!(selected, sortperm(
@@ -249,15 +250,16 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             dist = crowding_distance(collect(keys(ufit)))
             union!(F[i],[FitnessEvaluation(k,i,dist[j],Set(v)) for (j,(k,v)) in  enumerate(ufit)])
             
-            if (length(selected) + length(fi)) > state.pop_size
+            if (cursor + length(fi)) > state.pop_size
                 ind = i
                 break
             end
-            union!(selected,fronts[i])
+            selected[(cursor+1):(cursor+length(fronts[i]))] .= fronts[i]
+            cursor += length(fronts[i])
         end
         
         # Append the remaining base on distance
-        remaining = state.pop_size-length(selected)
+        remaining = state.pop_size-cursor
         if remaining == 0
             ind -= 1
         else
@@ -267,9 +269,9 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             end
             filter!(x -> !isempty(x.elems), F[ind])
 
-            union!(selected,S)
+            selected[(cursor+1):end] .= S
         end
-        
+
         for (i,j) in enumerate(selected)
             pop[i] = pool[j]
         end
