@@ -32,58 +32,56 @@ function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{
     return Dict([(v,argmax([ s == v ? p : -Inf for (s,p) in zip(sizes,perf)])) for v in u])
 end
 
-abstract type AbstractWorkspace end
-
 abstract type AbstractFitness{N,T} end
 
-struct LessFitness{N,T,F,C<:AbstractWorkspace} <: AbstractFitness{N,T}
+struct LessFitness{N,T,F} <: AbstractFitness{N,T}
     functional::F
-    ws::C
+    x::Vector{T}
     y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
-    function LessFitness{N}(functional::F, ws::C, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,C,T}
-        new{N,T,F,C}(functional,ws,y,weights,sigdigits)
+    function LessFitness{N}(functional::F, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
+        new{N,T,F}(functional,y,weights,sigdigits)
     end
 end
 
 
 function (f::LessFitness)(_::AbstractOptimParameters,m::AbstractModel)
-    r = f.functional(f.ws,m)
+    r = f.functional(f.x,m)
     nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
     return SVector((isnan(nssr) ? -Inf : nssr), (-convert(Float64,v) for v in get_n_metavariables(m))...)
 end
 
-struct MoreFitness{N,T,F,C<:AbstractWorkspace} <: AbstractFitness{N,T}
+struct MoreFitness{N,T,F} <: AbstractFitness{N,T}
     functional::F
-    ws::C
+    x::Vector{T}
     y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
-    function MoreFitness{N}(functional::F, ws::C, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,C,T}
-        new{N,T,F,C}(functional,ws,y,weights,sigdigits)
+    function MoreFitness{N}(functional::F, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
+        new{N,T,F}(functional,y,weights,sigdigits)
     end
 end
 
 function (f::MoreFitness)(_::AbstractOptimParameters,m::AbstractModel)
-    r = f.functional(f.ws,m)
+    r = f.functional(f.x,m)
     nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
     return SVector((isnan(nssr) ? -Inf : nssr), (convert(Float64,v) for v in get_n_metavariables(m))...)
 end
 
-struct NoneFitness{N,T,F,C<:AbstractWorkspace} <: AbstractFitness{N,T}
+struct NoneFitness{N,T,F} <: AbstractFitness{N,T}
     functional::F
-    ws::C
+    x::Vector{T}
     y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
-    function NoneFitness{N}(functional::F, ws::C, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,C,T}
-        new{N,T,F,C}(functional,ws,y,weights,sigdigits)
+    function NoneFitness{N}(functional::F, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
+        new{N,T,F}(functional,y,weights,sigdigits)
     end
 end
 
 function (f::NoneFitness)(_::AbstractOptimParameters,m::AbstractModel)
-    r = f.functional(f.ws,m)
+    r = f.functional(f.x,m)
     nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
     return SVector((isnan(nssr) ? -Inf : nssr),)
 end
@@ -103,20 +101,13 @@ end
 #     return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m)), -sum(get_n_metavariables(m))]
 # end
  
-function evaluate!(perf, state, pop, thread_fitness::AbstractVector{<:AbstractFitness})
+function evaluate!(perf, state, pop, fitness_function::AbstractFitness )
     ThreadsX.map!(perf,pop) do p 
-        thread_fitness[Threads.threadid()](state,p)
+        fitness_function(state,p)
     end
     return nothing
 end
     
-function evaluate!(perf,state, pop, fitness_function::AbstractFitness)
-    for i in 1:length(pop)
-        @inbounds perf[i] = fitness_function(state,pop[i])
-    end
-    return nothing
-end
-
 function evaluate(state,pop,fitness_function::AbstractFitness{N,T})  where {T,N}
     perf = Vector{SVector{N,T}}(undef,length(pop))
     evaluate!(perf,state,pop,fitness_function)
@@ -163,8 +154,6 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
             (Symbol("First front"),"$(join(sort([v.val => (length(v.elems),mean(constraint_violation[i] for i in v.elems)) for v in F[1]],rev=true),", ")) ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size))")
         ]
 
-    thread_fitness = [deepcopy(fitness_function) for _ in 1:Threads.nthreads()]
-   
     # Initialization of the pop candidate
     pool = vcat(pop,pop)
     pop_candidate = deepcopy(pop)
@@ -195,7 +184,10 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},p
 
         @debug "Current state: $state"
         
-        evaluate!(pool_perf,state,pool,thread_fitness)
+        pool[1:state.pop_size] .= pop
+        pool[(state.pop_size+1):end] .= pop_candidate
+
+        evaluate!(pool_perf,state,pool,fitness_function)
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf,constraint_violation)
 
