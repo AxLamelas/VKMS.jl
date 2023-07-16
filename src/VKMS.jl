@@ -40,8 +40,8 @@ struct LessFitness{N,T,F} <: AbstractFitness{N,T}
     y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
-    function LessFitness{N}(functional::F, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
-        new{N,T,F}(functional,y,weights,sigdigits)
+    function LessFitness{N}(functional::F, x::Vector{T}, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
+        new{N,T,F}(functional,x,y,weights,sigdigits)
     end
 end
 
@@ -58,8 +58,8 @@ struct MoreFitness{N,T,F} <: AbstractFitness{N,T}
     y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
-    function MoreFitness{N}(functional::F, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
-        new{N,T,F}(functional,y,weights,sigdigits)
+    function MoreFitness{N}(functional::F, x::Vector{T}, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
+        new{N,T,F}(functional,x,y,weights,sigdigits)
     end
 end
 
@@ -75,8 +75,8 @@ struct NoneFitness{N,T,F} <: AbstractFitness{N,T}
     y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
-    function NoneFitness{N}(functional::F, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
-        new{N,T,F}(functional,y,weights,sigdigits)
+    function NoneFitness{N}(functional::F, x::Vector{T}, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
+        new{N,T,F}(functional,x,y,weights,sigdigits)
     end
 end
 
