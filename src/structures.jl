@@ -4,20 +4,6 @@ using Distributions: Uniform
 using AbstractNumbers
 using Interpolations
 
-# abstract type AbstractMutationProbability end
-
-# struct FixedMutationProbability{T<:Number} <: AbstractMutationProbability
-#     pm::T
-# end
-
-# struct BinomialMutationProbability{T<:Number} <: AbstractMutationProbability
-#     mean::T
-# end
-
-
-# @inline mutation_probability(_::AbstractModel, m::FixedMutationProbability) = m.pm
-# mutation_probability(elem::AbstractModel, m::FixedMutationProbability) = m.mean / length(elem)
-
 
 struct FitnessEvaluation{T<:Real}
     val::AbstractVector{T}
@@ -86,7 +72,6 @@ number_type(::Type{Param{T}}) where {T} = T
 abstract type AbstractMetaVariable end
 
 Base.iterate(m::AbstractMetaVariable,state=1) = state > nfields(m) ? nothing : (getfield(m,fieldname(typeof(m),state)),state+1)
-#Base.convert(::Type{T},m::AbstractMetaVariable) where T = typeof(m)(convert.(T,m)...)
 
 struct Point{T} <: AbstractMetaVariable
     x::Param{T}

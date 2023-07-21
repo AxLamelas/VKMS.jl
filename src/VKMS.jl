@@ -74,20 +74,6 @@ function (f::NoneFitness)(_::AbstractOptimParameters,m::AbstractModel)
     return SVector((isnan(nssr) ? -Inf : nssr),)
 end
    
-
-# struct BothFitness{F,T,C<:AbstractWorkspace} <: AbstractFitness
-#     functional::F
-#     ws::C
-#     y::T
-#     weights::Vector{Float64}
-#     sigdigits::Int
-# end
-#
-# function (f::BothFitness)(_::AbstractOptimParameters,m::AbstractModel)
-#     r = f.functional(f.ws,m)
-#     nssr = round(sum(-f.weights[i] * (f.y[i] - r[i])^2 for i in eachindex(f.y)), sigdigits=f.sigdigits)
-#     return [isnan(nssr) ? -Inf : nssr, sum(get_n_metavariables(m)), -sum(get_n_metavariables(m))]
-# end
  
 function evaluate!(perf, state, pop, fitness_function::AbstractFitness )
     ThreadsX.map!(perf,pop) do p 
@@ -102,18 +88,6 @@ function evaluate(state,pop,fitness_function::AbstractFitness{N,T})  where {T,N}
     return perf
 end
 
-
-# function identity_scheduler(
-#     gen::Integer,
-#     pop::AbstractVector,
-#     perf::AbstractVector,
-#     constraint_violation::AbstractVector,
-#     rank::AbstractVector,
-#     p::AbstractOptimParameters)
-#     
-#     @debug("Identity scheduler")
-#     return pop,p
-# end
 
 
 function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},parameters::OptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, progress=true)::Tuple{Vector{T},Int} where {T<:AbstractModel, W, N} # stopping_tol=nothing, #scheduler=identity_scheduler

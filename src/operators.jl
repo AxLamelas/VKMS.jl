@@ -81,25 +81,6 @@ function mutate!(state, pop)
     end
 end
 
-# Tournament selection
-# function selection(rank, distance, number_in_tournament=2)
-#     pop_size = length(rank)
-
-#     mating_pool = Vector{Int}(undef,pop_size)
-#     for i in 1:pop_size
-#         best = rand(1:pop_size)
-#         for _ in 1:number_in_tournament-1
-#             candidate = rand(1:pop_size)
-#             if nondominated_better(rank[candidate],rank[best],distance[candidate],distance[best])
-#                 best = candidate
-#             end
-#         end
-#         mating_pool[i] = best
-#     end
-    
-#     return mating_pool
-# end
-
 
 unique_dict(v::AbstractVector) = Dict(k => findall(x -> x ≈ k, v) for k in unique(v))
 unique_dict(v::AbstractVector,vals::AbstractVector) = Dict(k => vals[findall(x -> x ≈ k, v)] for k in unique(v))
@@ -314,7 +295,7 @@ end
 
                                         
 
-# Has to return 0 if no constraint is violated or the ammount of violation if it violest some constraints
+# Has to return 0 if no constraint is violated or the amount of violation if it violates some constraints
 # Element wise constraints
 function constraints(s::AbstractModel{T}) where {T <: Number}
     #Add up distance bellow lower bound and above upper bound
@@ -336,7 +317,7 @@ function constraints(s::AbstractModel{T}) where {T <: Number}
     return constraint_violation
 end
 
-# Has to return 0 if no constraint is violated or the ammount of violation if it violest some constraints
+# Has to return 0 if no constraint is violated or the amount of violation if it violates some constraints
 # Population wise constraints
 function constraints(
     state::AbstractOptimParameters,
