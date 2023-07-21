@@ -1,7 +1,7 @@
 module VKMS
 
 export evolve, VLGroup, AbstractMetaVariable, Point,randomPoint, similar_population,
-AbstractOptimParameters, OptimParameters, Param, AbstractModel, best_by_size, KnotModel, random_population, model_function_factory, get_n_metavariables, first_front
+AbstractOptimParameters, OptimParameters, Param, AbstractModel, KnotModel, random_population, model_function_factory, get_n_metavariables 
 
 export LessFitness, MoreFitness,  NoneFitness # BothFitness,
 
@@ -19,18 +19,6 @@ include("structures.jl")
 include("operators.jl")
 include("nondominated.jl")
 
-
-function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{<:Number},::Val{true})
-    sizes = [sum(get_n_metavariables(p)) for p in pop]
-    u = sort(unique(sizes))
-    return Dict([(v,pop[argmax([ s == v ? p : -Inf for (s,p) in zip(sizes,perf)])]) for v in u])
-end
-
-function best_by_size(pop::AbstractVector{<:AbstractModel},perf::AbstractVector{<:Number})
-    sizes = [sum(get_n_metavariables(p)) for p in pop]
-    u = sort(unique(sizes))
-    return Dict([(v,argmax([ s == v ? p : -Inf for (s,p) in zip(sizes,perf)])) for v in u])
-end
 
 abstract type AbstractFitness{N,T} end
 
@@ -127,12 +115,6 @@ end
 #     return pop,p
 # end
 
-function first_front(state::OptimParameters, pop::AbstractVector{T},fitness_function) where {T <: AbstractModel}
-    pop_perf = evaluate(state,pop,fitness_function)
-    constraint_violation  = constraints.(pop)
-    fronts = fast_non_dominated_sort(pop_perf,constraint_violation)
-    return unique_dict(pop_perf[fronts[1]],fronts[1])
-end
 
 function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W},parameters::OptimParameters; max_gen=nothing,max_time=nothing,terminate_on_front_collapse = true, progress=true)::Tuple{Vector{T},Int} where {T<:AbstractModel, W, N} # stopping_tol=nothing, #scheduler=identity_scheduler
     @assert any([!isnothing(c) for c in [max_gen,max_time]]) "Please define at least one stopping criterium" #,stopping_tol

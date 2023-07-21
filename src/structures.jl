@@ -158,19 +158,6 @@ number_type(::KnotModel{T}) where {T} = T
 number_type(::Type{KnotModel{T}}) where {T} = T
 
 
-function correct_same_x!(xs::AbstractVector)
-    unique_xs = unique(xs)
-    if unique_xs == xs return nothing end
-    for v in unique_xs
-        inds = findall(x->x==v,xs)
-        if length(inds) == 1 continue end
-        for k in 2:length(inds)
-            xs[inds[k]] = xs[inds[k-1]]+eps(xs[inds[k-1]])
-        end
-    end
-    correct_same_x!(xs) # Might cause another same x when moving
-end
-
 function model_function_factory(m::KnotModel)
     xs = map(v -> v.x.val, m.knots)
     ys = map(v -> v.y.val, m.knots)
