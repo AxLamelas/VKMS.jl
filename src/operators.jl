@@ -11,7 +11,8 @@ function polynomial_mutation(s::Param; p::P=0.5, η::E=2) where {E<:Real,P<:Real
     end
 end
 
-# TODO: mutation and crossover operators must act in knots grouped by bounds, would allow to have knots "fixed inside intervals"
+# TODO: mutation and crossover operators must act in knots grouped by bounds
+# Would allow to have knots "fixed inside intervals"
 # Solution in the mean time is to use different VLGroup for each range
 function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr::T=0.5) where {T<:Real}
     params = flatten(elem, Param)
@@ -53,28 +54,6 @@ function mutate_element(state::AbstractOptimParameters, elem::AbstractModel; pr:
     return new
 end
 
-
-function similar_population(initial_s::AbstractModel, pop_size::Int; η::E=500.0, pl::P=0.2) where {E<:Real,P<:Real}
-    return ThreadsX.map(1:pop_size) do _
-        mutate_element(MutationParameters(promote(η, pl)...), initial_s)
-    end
-end
-
-function similar_population(initial_s::AbstractModel, pop_size::Int, metric::Function; gen_multiplier::Int=10, η::E=500.0, pl::P=0.2) where {E<:Real,P<:Real}
-    @assert gen_multiplier >= 1 "Generation multiplier should be at least 1"
-    if gen_multiplier == 1
-        return similar_population(initial_s, pop_size, η=η)
-    end
-
-    size = pop_size * gen_multiplier
-    pop = ThreadsX.map(1:size) do _
-        mutate_element(MutationParameters(promote(η, pl)...), initial_s)
-    end
-
-    m = ThreadsX.map(metric, pop)
-
-    return pop[sortperm([isnan(v) ? -Inf : v for v in m], rev=true)[1:pop_size]]
-end
 
 
 function mutate!(state, pop)
@@ -343,6 +322,8 @@ function constraints(
 
     return c_violation
 end
+
+
 
 
 

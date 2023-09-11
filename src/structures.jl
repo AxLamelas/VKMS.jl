@@ -44,6 +44,11 @@ end
 const uuid = UUIDs.uuid1
 
 
+"""
+    Param(val, lb, ub)
+
+Parameter to be optimized, `val`, and its lower, `lb`, and upper, `ub`, bounds.
+"""
 struct Param{T} <: AbstractNumbers.AbstractNumber{T}
     val::T
     lb::T
@@ -73,11 +78,17 @@ abstract type AbstractMetaVariable end
 
 Base.iterate(m::AbstractMetaVariable, state=1) = state > nfields(m) ? nothing : (getfield(m, fieldname(typeof(m), state)), state + 1)
 
+"Metavariable to represent a 2-dimensional point"
 struct Point{T} <: AbstractMetaVariable
     x::Param{T}
     y::Param{T}
 end
 
+"""
+    Point(x, xbound, y, ybounds)
+
+Return a Point with coordinates `x` and `y`, bounded by `xbounds` and `ybounds`, respectively.
+"""
 function Point(x::Number, xbounds::Tuple{Number,Number}, y::Number, ybounds::Tuple{Number,Number})
     x, xlb, xub, y, ylb, yub = promote(x, xbounds..., y, ybounds...)
     Point(
@@ -86,18 +97,37 @@ function Point(x::Number, xbounds::Tuple{Number,Number}, y::Number, ybounds::Tup
     )
 end
 
+"""
+    Point(x, y)
+
+Return a Point with coordinates `x` and `y`.
+"""
 Point(x::Number, y::Number) = Point(x, (typemin(x), typemax(x)), y, (typemin(y), typemax(y)))
+"""
+    Point(range)
+
+Return a Point with coordinates (0,0) bound in both dimensions by range.
+"""
 Point(range::Tuple{Number,Number}) = Point(0, range, 0, range)
+
+
+"""
+    Point()
+
+Return a unbounded Point with coordinates (0,0).
+"""
 Point() = Point(0.0, 0.0)
+
 Base.convert(::Type{Point{T}}, x::Point{W}) where {T,W} = Point(convert.(Param{T}, x)...)
 
-randomPoint(xrange::Tuple{Number,Number}, yrange::Tuple{Number,Number}) = Point(rand(Uniform(xrange...)), xrange, rand(Uniform(yrange...)), yrange)
-randomPoint(range::Tuple{Number,Number}) = randomPoint(range, range)
+random_point(xrange::Tuple{Number,Number}, yrange::Tuple{Number,Number}) = Point(rand(Uniform(xrange...)), xrange, rand(Uniform(yrange...)), yrange)
+random_point(range::Tuple{Number,Number}) = random_point(range, range)
 
 Base.length(::Point) = 2
 number_type(::Point{T}) where {T} = T
 number_type(::Type{Point{T}}) where {T} = T
 
+"Variable length group of subtype of `AbstractMetaVariable`."
 struct VLGroup{W<:AbstractMetaVariable}
     id::UUID
     metavariables::NTuple{N,W} where {N}
@@ -131,6 +161,9 @@ deleteat(m::AbstractModel, id::UUID, inds::AbstractVector{Int}) = modify(g -> g.
 isfixed(p::Param) = (p.lb ≈ p.ub)
 get_n_metavariables(m::AbstractModel) = (length(flatten(m, AbstractMetaVariable)),)
 
+"""
+Simple model consisting of one `VLGroup`, a slope `m` and a y-intercept `b`.
+"""
 struct KnotModel{T} <: AbstractModel{T}
     m::Param{T}
     b::Param{T}
@@ -143,6 +176,17 @@ number_type(::KnotModel{T}) where {T} = T
 number_type(::Type{KnotModel{T}}) where {T} = T
 
 
+
+
+"""
+    model_function_factory(m::AbstractModel)
+
+
+Return a callable to evaluate the model `m` at given `x`.
+"""
+model_function_factory(m::AbstractModel) = error("Must implement `model_function_factory` for `$(typeof(m))`.")
+
+
 function model_function_factory(m::KnotModel)
     xs = map(v -> v.x.val, m.knots)
     ys = map(v -> v.y.val, m.knots)
@@ -152,121 +196,5 @@ function model_function_factory(m::KnotModel)
     Interpolations.deduplicate_knots!(xs; move_knots=true)
     return extrapolate(interpolate(xs, ys, SteffenMonotonicInterpolation()), Flat())
 end
-
-
-function random_population(
-    xbounds::AbstractVector{<:Tuple},
-    ybounds::AbstractVector{<:Tuple},
-    mbounds::Tuple,
-    bbounds::Tuple,
-    pop_size::Int
-)
-    @assert length(xbounds) == length(ybounds) "Bounds must have the same length"
-    mm, Mm = mbounds
-    mb, Mb = bbounds
-    n_knots = length(xbounds)
-    return [
-        begin
-            knot_x = [(Mx - mx) * rand() + mx for (mx, Mx) in xbounds]
-            knot_y = [(My - my) * rand() + my for (my, My) in ybounds]
-            KnotModel(Param((Mm - mm) * rand() + mm, mbounds...), Param((Mb - mb) * rand() + mb, bbounds...),
-                VLGroup(Point, n_knots, knot_x, xbounds, knot_y, ybounds))
-        end for _ in 1:pop_size
-    ]
-end
-
-function random_population(
-    xbounds::AbstractVector{<:Tuple},
-    ybounds::AbstractVector{<:Tuple},
-    mbounds::Tuple,
-    bbounds::Tuple,
-    pop_size::Int,
-    metric::Function;
-    gen_multiplier::Int=10
-)
-    @assert length(xbounds) == length(ybounds) "Bounds must have the same length"
-    mm, Mm = mbounds
-    mb, Mb = bbounds
-    total = gen_multiplier * pop_size
-    n_knots = length(xbounds)
-    pop = [
-        begin
-            knot_x = [(Mx - mx) * rand() + mx for (mx, Mx) in xbounds]
-            knot_y = [(My - my) * rand() + my for (my, My) in ybounds]
-            KnotModel(Param((Mm - mm) * rand() + mm, mbounds...), Param((Mb - mb) * rand() + mb, bbounds...),
-                VLGroup(Point, n_knots, knot_x, xbounds, knot_y, ybounds))
-        end for _ in 1:total
-    ]
-
-    m = ThreadsX.map(metric, pop)
-
-    return pop[sortperm([isnan(v) ? -Inf : v for v in m], rev=true)[1:pop_size]]
-
-end
-
-
-function random_population(
-    n_knots::Integer,
-    xbounds::Tuple,
-    ybounds::Tuple,
-    mbounds::Tuple,
-    bbounds::Tuple,
-    pop_size::Int,
-    metric::Function;
-    gen_multiplier::Int=10
-)
-    total = gen_multiplier * pop_size
-    mx, Mx = xbounds
-    my, My = ybounds
-    mm, Mm = mbounds
-    mb, Mb = bbounds
-    pop = [
-        begin
-            knot_x = range(mx, Mx, length=n_knots)
-            bounds_x = vcat((mx, mx), fill((mx, Mx), n_knots - 2), (Mx, Mx))
-            knot_y = (My - my) .* rand(n_knots) .+ my
-            bounds_y = fill((my, My), n_knots)
-            KnotModel(Param((Mm - mm) * rand() + mm, mbounds...), Param((Mb - mb) * rand() + mb, bbounds...),
-                VLGroup(Point, n_knots, knot_x, bounds_x, knot_y, bounds_y))
-        end for _ in 1:total
-    ]
-
-    m = ThreadsX.map(metric, pop)
-
-    return pop[sortperm([isnan(v) ? -Inf : v for v in m], rev=true)[1:pop_size]]
-
-end
-
-
-
-function random_population(
-    n_knots::Integer,
-    xbounds::Tuple,
-    ybounds::Tuple,
-    mbounds::Tuple,
-    bbounds::Tuple,
-    pop_size::Int,
-)
-    mx, Mx = xbounds
-    my, My = ybounds
-    mm, Mm = mbounds
-    mb, Mb = bbounds
-    pop = [
-        begin
-            knot_x = range(mx, Mx, length=n_knots)
-            bounds_x = vcat((mx, mx), fill((mx, Mx), n_knots - 2), (Mx, Mx))
-            knot_y = (My - my) .* rand(n_knots) .+ my
-            bounds_y = fill((my, My), n_knots)
-            KnotModel(Param((Mm - mm) * rand() + mm, mbounds...), Param((Mb - mb) * rand() + mb, bbounds...),
-                VLGroup(Point, n_knots, knot_x, bounds_x, knot_y, bounds_y))
-        end for _ in 1:pop_size
-    ]
-
-    return pop
-
-end
-
-
-
 
 

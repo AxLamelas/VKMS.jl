@@ -1,11 +1,11 @@
 module VKMS
 
-export evolve, VLGroup, AbstractMetaVariable, Point, randomPoint, similar_population,
-    AbstractOptimParameters, OptimParameters, Param, AbstractModel, KnotModel,
-    random_population, model_function_factory, get_n_metavariables
+export AbstractMetaVariable, AbstractOptimParameters, AbstractModel,
+    VLGroup, Point, OptimParameters, Param, KnotModel,
+    LessFitness, MoreFitness, NoneFitness
 
-export LessFitness, MoreFitness, NoneFitness # BothFitness,
-
+export evolve, random_point, similar_population, random_population,
+    model_function_factory, get_n_metavariables
 
 using Dates
 using StatsBase
@@ -20,16 +20,27 @@ using Flatten
 include("structures.jl")
 include("operators.jl")
 include("nondominated.jl")
+include("gen.jl")
 
 
 abstract type AbstractFitness{N,T} end
 
+"""
+    LessFitness{N}(functional, x, y, weigths, sigdigits)
+
+Returns an instance of `LessFitness` which considers the negative residual sum of squared errors and the negative length of each `VLGroup` in the model as fitness.
+
+The residual sum of squared errors is weighted by `weights` and rounded to `sigdigits` significant digits.
+`N` is the length of the return `SVector`. 
+"""
 struct LessFitness{N,T,F} <: AbstractFitness{N,T}
     functional::F
     x::Vector{T}
     y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
+    """
+    """
     function LessFitness{N}(functional::F, x::Vector{T}, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
         new{N,T,F}(functional, x, y, weights, sigdigits)
     end
@@ -42,6 +53,14 @@ function (f::LessFitness)(_::AbstractOptimParameters, m::AbstractModel)
     return SVector((isnan(nssr) ? -Inf : nssr), (-convert(Float64, v) for v in get_n_metavariables(m))...)
 end
 
+"""
+    MoreFitness{N}(functional, x, y, weigths, sigdigits)
+
+Returns an instance of `MoreFitness` which considers the negative residual sum of squared errors and the length of each `VLGroup` in the model as fitness.
+
+The residual sum of squared errors is weighted by `weights` and rounded to `sigdigits` significant digits.
+`N` is the length of the return `SVector`. 
+"""
 struct MoreFitness{N,T,F} <: AbstractFitness{N,T}
     functional::F
     x::Vector{T}
@@ -59,14 +78,22 @@ function (f::MoreFitness)(_::AbstractOptimParameters, m::AbstractModel)
     return SVector((isnan(nssr) ? -Inf : nssr), (convert(Float64, v) for v in get_n_metavariables(m))...)
 end
 
+"""
+    NoneFitness(functional, x, y, weigths, sigdigits)
+
+Returns an instance of `NoneFitness` which considers the negative residual sum of squared errors as fitness.
+
+The residual sum of squared errors is weighted by `weights` and rounded to `sigdigits` significant digits.
+`N` is the length of the return `SVector`. 
+"""
 struct NoneFitness{N,T,F} <: AbstractFitness{N,T}
     functional::F
     x::Vector{T}
     y::Vector{T}
     weights::Vector{Float64}
     sigdigits::Int
-    function NoneFitness{N}(functional::F, x::Vector{T}, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
-        new{N,T,F}(functional, x, y, weights, sigdigits)
+    function NoneFitness(functional::F, x::Vector{T}, y::Vector{T}, weights::Vector{Float64}, sigdigits::Int) where {N,F,T}
+        new{1,T,F}(functional, x, y, weights, sigdigits)
     end
 end
 
@@ -77,23 +104,44 @@ function (f::NoneFitness)(_::AbstractOptimParameters, m::AbstractModel)
 end
 
 
-function evaluate!(perf, state, pop, fitness_function::AbstractFitness)
+function evaluate!(perf, state, pop, fitness::AbstractFitness)
     ThreadsX.map!(perf, pop) do p
-        fitness_function(state, p)
+        fitness(state, p)
     end
     return nothing
 end
 
-function evaluate(state, pop, fitness_function::AbstractFitness{N,T}) where {T,N}
+function evaluate(state, pop, fitness::AbstractFitness{N,T}) where {T,N}
     perf = Vector{SVector{N,T}}(undef, length(pop))
-    evaluate!(perf, state, pop, fitness_function)
+    evaluate!(perf, state, pop, fitness)
     return perf
 end
 
 
+"""
+    evolve(pop::AbstractVector{<:AbstractModel}, fitness_function::AbstractFitness, parameters::OptimParameters; <keyword arguments>)
 
-function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W}, parameters::OptimParameters; max_gen=nothing, max_time=nothing, terminate_on_front_collapse=true, progress=true)::Tuple{Vector{T},Int} where {T<:AbstractModel,W,N} # stopping_tol=nothing, #scheduler=identity_scheduler
-    @assert any([!isnothing(c) for c in [max_gen, max_time]]) "Please define at least one stopping criterium" #,stopping_tol
+Evolve the initial population `pop` as measured by the fitness `fitness_function` using `parameters`.
+
+# Keyword Arguments
+
+`max_gen`: Maximum number of generations
+
+`max_time`: Maximum time spent in the evolution
+
+`terminate_on_front_collapse`: Terminate evolution when all
+
+`progress`: Display a progress bar
+
+"""
+function evolve(
+    pop::AbstractVector{<:AbstractModel},
+    fitness::AbstractFitness{N,W},
+    parameters::OptimParameters;
+    max_gen=nothing,
+    max_time=nothing,
+    terminate_on_front_collapse=true,
+    progress=true) where {W,N}
     @assert length(pop) == parameters.pop_size "Inconsistancy between the legth of the population and the population size in the state"
     @assert rem(parameters.pop_size, 2) == 0 "Population size must be divisible by 2"
 
@@ -108,7 +156,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W}, 
     end
 
     generate_showvalues(state, F, constraint_violation) = () -> [
-        (:n, state.ηm),
+        (:η, state.ηm),
         (Symbol("First front"), "$(join(sort([v.val => (length(v.elems),mean(constraint_violation[i] for i in v.elems)) for v in F[1]],rev=true),", ")) ($(sum(length(v.elems) for v in F[1]))/$(state.pop_size))")
     ]
 
@@ -145,7 +193,7 @@ function evolve(pop::AbstractVector{T}, fitness_function::AbstractFitness{N,W}, 
         pool[1:state.pop_size] .= pop
         pool[(state.pop_size+1):end] .= pop_candidate
 
-        evaluate!(pool_perf, state, pool, fitness_function)
+        evaluate!(pool_perf, state, pool, fitness)
         constraint_violation = constraints(state, pool, pool_perf)
         fronts = fast_non_dominated_sort(pool_perf, constraint_violation)
 
