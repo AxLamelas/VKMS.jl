@@ -1,4 +1,5 @@
 using VKMS
+using Statistics: mean
 using Test
 
 @testset "Structure" begin
@@ -15,10 +16,10 @@ end
     functional(x::AbstractVector,f) = @. 2f(x) + x + 1
     functional(x::AbstractVector,m::KnotModel) = functional(x,model_function_factory(m)) .+ m.m.val .+ m.b.val
     target_function = sin
-    x = -10:0.2:10
+    x = -10:0.2:10 |> collect
     y = functional(x,target_function)
 
-    fitness = fitness_factory(functional,x,y)
+    fitness = LessFitness{2}(functional,x,y,ones(length(x)),5)
 
     n_knots=10
     xbounds = vcat((minimum(x),minimum(x)),fill((minimum(x),maximum(x)),n_knots-2),(maximum(x),maximum(x)))
@@ -27,17 +28,24 @@ end
     @test count(!=(2), [length(filter(v -> v.x.lb == v.x.ub, p.knots.metavariables)) for p in pop]) == 0
     @test all([all(p .== (10,)) for p in get_n_metavariables.(pop)])
 
-    final_pop, gen = evolve(pop, fitness, state, max_gen = 2000, info_every=10)
+    initial_ssr = mean(begin
+        residual = target_function.(x) .- model_function_factory(p).(x)
+        residual' * residual
+    end for p in pop)
+
+    final_pop, gen = evolve(pop, fitness, state, max_gen = 2000)
     
     @test typeof(pop) == typeof(final_pop)
     @test length(pop) == length(final_pop) == state.pop_size
     @test count(!=(2), [length(filter(v -> v.x.lb == v.x.ub, p.knots.metavariables)) for p in final_pop]) == 0
 
-    fit = [begin
+    final_ssr = mean(begin
         residual = target_function.(x) .- model_function_factory(p).(x)
         residual' * residual
-    end for p in final_pop]
+    end for p in final_pop)
 
-    println(best_by_size(final_pop,fit,Val(true)))
-    println(best_by_size(final_pop,fit))
+    @test initial_ssr > final_ssr 
+    println("Mean initial ssr: $(initial_ssr)")
+    println("Mean final ssr: $(final_ssr)")
+
 end
