@@ -1,4 +1,5 @@
 # Variable-Knot Monotonic Spline (VKMS.jl) 
+[![DOI](https://zenodo.org/badge/777892627.svg)](https://zenodo.org/doi/10.5281/zenodo.10882186)
 
 This package implements the algorithm described in [citation] to fit non-parametrically a function observed through a non-linear functional.
 
