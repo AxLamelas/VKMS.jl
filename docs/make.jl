@@ -1,10 +1,10 @@
 using Documenter
-using VLEvolution
+using VKMS
 
 makedocs(
-    sitename = "VLEvolution",
+    sitename = "VKMS",
     format = Documenter.HTML(),
-    modules = [VLEvolution]
+    modules = [VKMS]
 )
 
 # Documenter can also automatically deploy documentation to gh-pages.

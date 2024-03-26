@@ -100,9 +100,10 @@ end
 """
     Point(x, y)
 
-Return a Point with coordinates `x` and `y`.
+Return an unbounded Point with coordinates `x` and `y`.
 """
 Point(x::Number, y::Number) = Point(x, (typemin(x), typemax(x)), y, (typemin(y), typemax(y)))
+
 """
     Point(range)
 
@@ -145,7 +146,7 @@ abstract type AbstractModel{T} end
 
 
 Base.eltype(_::AbstractModel{T}) where {T} = T
-Base.length(x::AbstractModel) = length(flatten(x)) # Generic fallback, ovewrite for better performance
+Base.length(x::AbstractModel) = length(flatten(x)) # Generic fallback, overwrite for better performance
 
 push(g::VLGroup, meta::AbstractMetaVariable) = VLGroup(g.id, (g.metavariables..., meta))
 delete(g::VLGroup, meta::AbstractMetaVariable) = VLGroup(g.id, Tuple([m for m in g.metavariables if m != meta]))
